@@ -3,6 +3,11 @@
 #include <linux/slab.h>
 #include <asm/uaccess.h>
 
+void move_elements(task_t* found_task,int size);
+int sys_enable_syscalls_logging(pid_t pid, int size);
+int sys_disable_syscalls_logging(pid_t pid);
+int sys_get_syscalls_log(pid_t pid, int size, syscall_log_info* user_mem);
+
 int sys_enable_syscalls_logging(pid_t pid, int size){
     if(pid<0){
         return -ESRCH;
@@ -49,7 +54,6 @@ int sys_disable_syscalls_logging(pid_t pid){
 
 
 int sys_get_syscalls_log(pid_t pid, int size, syscall_log_info* user_mem){
-     printk("get is working\n");
     if(pid<0){
         return -ESRCH;
     }
@@ -68,7 +72,17 @@ int sys_get_syscalls_log(pid_t pid, int size, syscall_log_info* user_mem){
     }
 
     //here should be the logic of cyclic array
-
+    move_elements(found_task,int size);
+   
     return 0;
 }
 
+
+void move_elements(task_t* found_task,int size){
+      int i;
+      int remainingElements= found_task->logger_next_log_index - size;
+      for(i=0;i<remainingElements;i++){
+          found_task->logger_queue[i]=found_task->logger_queue[i+size];
+      }
+      found_task->logger_next_log_index-=size;
+}
