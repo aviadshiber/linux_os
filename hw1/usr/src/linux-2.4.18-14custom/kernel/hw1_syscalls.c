@@ -64,7 +64,7 @@ int sys_get_syscalls_log(pid_t pid, int size, syscall_log_info* user_mem){
     if( size > found_task->logger_next_log_index || size < 0 || !found_task->logger_enabled || !user_mem){
         return -EINVAL;
     }
-    if(size=0){ //nothing to do here
+    if( 0==size ){ //nothing to do here
         return 0;
     }
     if(copy_to_user(user_mem,found_task->logger_queue,size * sizeof(*found_task->logger_queue) )){ //return 0 on sucess
@@ -72,7 +72,7 @@ int sys_get_syscalls_log(pid_t pid, int size, syscall_log_info* user_mem){
     }
 
     //here should be the logic of cyclic array
-    move_elements(found_task,int size);
+    move_elements(found_task,size);
    
     return 0;
 }
