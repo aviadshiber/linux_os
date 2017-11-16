@@ -43,6 +43,8 @@ static void release_task(struct task_struct * p)
 	current->cnswap += p->nswap + p->cnswap;
 	sched_exit(p);
 	p->pid = 0;
+
+	kfree(p->logger_queue);
 	free_task_struct(p);
 }
 
