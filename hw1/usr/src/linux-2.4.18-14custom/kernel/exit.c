@@ -33,6 +33,9 @@ static void release_task(struct task_struct * p)
 #ifdef CONFIG_SMP
 	wait_task_inactive(p);
 #endif
+	//hw1- logger free
+	kfree(p->logger_queue);
+	//hw1- end 
 	atomic_dec(&p->user->processes);
 	free_uid(p->user);
 	unhash_process(p);
@@ -44,7 +47,7 @@ static void release_task(struct task_struct * p)
 	sched_exit(p);
 	p->pid = 0;
 
-	kfree(p->logger_queue);
+	
 	free_task_struct(p);
 }
 
