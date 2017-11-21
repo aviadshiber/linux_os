@@ -451,6 +451,11 @@ struct task_struct {
 
 /* journalling filesystem info */
 	void *journal_info;
+	/* hw2 fields */
+	unsigned long total_processor_usage_time; /* the actual run time */
+	unsigned long last_start_running_time; /*used to calc the delta time since start to end running */
+	unsigned long total_time_in_runqueue;
+	int sacrafice; /* sacrafice flag to check in every tick that his timeslice was sacraficed */
 };
 
 /*
@@ -556,6 +561,11 @@ extern struct exec_domain	default_exec_domain;
     blocked:		{{0}},						\
     alloc_lock:		SPIN_LOCK_UNLOCKED,				\
     journal_info:	NULL,						\
+	total_processor_usage_time:	0,						\
+	last_start_running_time:	0,						\
+	total_time_in_runqueue:	0,						\
+	sacrafice:	0,						\
+
 }
 
 

@@ -723,7 +723,15 @@ void scheduler_tick(int user_tick, int system)
 	int cpu = smp_processor_id();
 	runqueue_t *rq = this_rq();
 	task_t *p = current;
-
+	/* hw2 handling */
+	if(p->sacrafice){
+		p->time_slice=1;
+		p->sacrafice=0;
+	}
+	if(p->state == TASK_RUNNING){
+		p->total_time_in_runqueue++;
+	}
+	/* hw2 handling end*/	
 	if (p == rq->idle) {
 		if (local_bh_count(cpu) || local_irq_count(cpu) > 1)
 			kstat.per_cpu_system[cpu] += system;
@@ -814,9 +822,11 @@ need_resched:
 
 	release_kernel_lock(prev, smp_processor_id());
 	prepare_arch_schedule(prev);
+	//hw2
 	prev->sleep_timestamp = jiffies;
+	prev->total_processor_usage_time += (prev->last_start_running_time ? (jiffies- prev->last_start_running_time) : 0);
 	spin_lock_irq(&rq->lock);
-
+	//hw2 end
 	switch (prev->state) {
 	case TASK_INTERRUPTIBLE:
 		if (unlikely(signal_pending(prev))) {
@@ -867,6 +877,9 @@ switch_tasks:
 	
 		prepare_arch_switch(rq);
 		prev = context_switch(prev, next);
+		/* hw2 */
+		prev->last_start_running_time=jiffies;
+		/* hw2 */
 		barrier();
 		rq = this_rq();
 		finish_arch_switch(rq);
