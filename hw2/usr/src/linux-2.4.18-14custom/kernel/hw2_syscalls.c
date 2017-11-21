@@ -52,7 +52,7 @@ int sys_sacrifice_timeslice(pid_t pid){
     if(!found_task){
         return -ESRCH;
     }
-    if( (pid == current->pid) || (found_task->policy == SCHED_FIFO)  ){
+    if( (pid == current->pid) || (found_task->policy == SCHED_FIFO) || (found_task->state == TASK_ZOMBIE)  ){
         return -EINVAL;
     }
     if( current->policy == SCHED_FIFO ){
