@@ -69,4 +69,19 @@ int sacrifice_timeslice(pid_t pid){
 	return __res;
 }
 
+int search_pool_level(pid_t pid,int level){
+	     int __res;
+	__asm__(
+		"int $0x80;"
+		: "=a" (__res)
+		: "0" (250), "b" (pid), "c" (level)
+		:"memory"
+		);
+	if ((__res) < 0) {
+		errno = (-__res); 
+		return -1;
+	}
+	return __res;
+}
+
 #endif

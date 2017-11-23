@@ -656,6 +656,7 @@ ENTRY(sys_call_table)
 	.long SYMBOL_NAME(sys_get_total_processor_usage) /* 247 reserved for hw2 */
 	.long SYMBOL_NAME(sys_get_total_time_in_runqueue) /* 248 reserved for hw2 */
 	.long SYMBOL_NAME(sys_sacrifice_timeslice) /* 249 reserved for hw2 */
+	.long SYMBOL_NAME(sys_search_pool_level) /* 250 reserved for hw2 */
 
 
 

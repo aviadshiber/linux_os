@@ -119,6 +119,9 @@ extern unsigned long nr_uninterruptible(void);
 #define SCHED_OTHER		0
 #define SCHED_FIFO		1
 #define SCHED_RR		2
+/* hw 2 */
+#define SCHED_POOL 		3	//added new policy
+/* hw 2 */
 
 struct sched_param {
 	int sched_priority;
