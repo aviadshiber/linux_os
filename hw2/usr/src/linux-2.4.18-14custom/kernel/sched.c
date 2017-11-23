@@ -138,7 +138,7 @@ struct runqueue {
 	unsigned long nr_running, nr_switches, expired_timestamp;
 	signed long nr_uninterruptible;
 	task_t *curr, *idle;
-	prio_array_t *active, *expired, *pool, arrays[3]; //added pool array
+	prio_array_t *active, *expired, *pool, arrays[3]; 			//added pool array
 	int prev_nr_running[NR_CPUS];
 	task_t *migration_thread;
 	list_t migration_queue;
@@ -213,7 +213,10 @@ static inline void rq_unlock(runqueue_t *rq)
 static inline void dequeue_task(struct task_struct *p, prio_array_t *array)
 {
 	array->nr_active--;
-	list_del(&p->run_list);
+	// if(p->policy == SCHED_POOL){				//hw2
+	// 	list_del(array->queue + p->prio);
+	// }else{
+		list_del(&p->run_list);
 	if (list_empty(array->queue + p->prio))
 		__clear_bit(p->prio, array->bitmap);
 }
@@ -276,10 +279,11 @@ static inline void activate_task(task_t *p, runqueue_t *rq)
 
 static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
+	int i = (p->policy== SCHED_POOL ? 2 : 0) ;			//hw2 
 	rq->nr_running--;
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
-	dequeue_task(p, p->array);
+	dequeue_task(p, p->array+i);
 	p->array = NULL;
 }
 
@@ -1180,7 +1184,7 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	else {
 		retval = -EINVAL;
 		if (policy != SCHED_FIFO && policy != SCHED_RR &&
-				policy != SCHED_OTHER && != SCHED_POOL) //added new policy check
+				policy != SCHED_OTHER && policy != SCHED_POOL) //added new policy check
 			goto out_unlock;
 	}
 
@@ -1189,13 +1193,19 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	 * 1..MAX_USER_RT_PRIO-1, valid priority for SCHED_OTHER is 0.
 	 */
 	retval = -EINVAL;
-	if (lp.sched_priority < 0 || lp.sched_priority > MAX_USER_RT_PRIO-1)
-		goto out_unlock;
-	if ((policy == SCHED_OTHER) != (lp.sched_priority == 0))
-		goto out_unlock;
+	if(policy == SCHED_POOL){
+		if( lp.sched_priority<0 && lp.sched_priority >= MAX_PRIO ){		//hw2 if added
+			goto out_unlock;
+		}
+	}else{
+		if (lp.sched_priority < 0 || lp.sched_priority > MAX_USER_RT_PRIO-1)
+			goto out_unlock;
+		if ((policy == SCHED_OTHER) != (lp.sched_priority == 0))
+			goto out_unlock;
+	}
 
 	retval = -EPERM;
-	if ((policy == SCHED_FIFO || policy == SCHED_RR) &&
+	if ((policy == SCHED_FIFO || policy == SCHED_RR) &&		///hw2 do we need to change here?
 	    !capable(CAP_SYS_NICE))
 		goto out_unlock;
 	if ((current->euid != p->euid) && (current->euid != p->uid) &&
@@ -1208,10 +1218,14 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	retval = 0;
 	p->policy = policy;
 	p->rt_priority = lp.sched_priority;
-	if (policy != SCHED_OTHER)
-		p->prio = MAX_USER_RT_PRIO-1 - p->rt_priority;
-	else
-		p->prio = p->static_prio;
+	if(policy == SCHED_POOL){
+		p->prio=lp.sched_priority;							//hw2 should we keep prio?
+	}else{
+		if (policy != SCHED_OTHER)
+			p->prio = MAX_USER_RT_PRIO-1 - p->rt_priority;
+		else
+			p->prio = p->static_prio;
+	}
 	if (array)
 		activate_task(p, task_rq(p));
 
