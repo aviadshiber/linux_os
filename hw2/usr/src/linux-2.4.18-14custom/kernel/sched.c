@@ -741,7 +741,7 @@ void scheduler_tick(int user_tick, int system)
 		p->time_slice=1;
 		p->sacrafice=0;
 	}
-	if(p->state == TASK_RUNNING){
+	if(p->state == TASK_RUNNING){				//hw2 need to fix this!
 		p->total_time_in_runqueue++;
 	}
 	/* hw2 handling end*/	
