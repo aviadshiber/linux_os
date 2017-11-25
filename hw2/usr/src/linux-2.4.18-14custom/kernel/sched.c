@@ -1972,3 +1972,22 @@ struct low_latency_enable_struct __enable_lowlatency = { 0, };
 
 #endif	/* LOWLATENCY_NEEDED */
 
+int sys_search_pool_level(pid_t pid,int level){
+    if(level < 0 || level > MAX_PRIO -1){
+        return -EINVAL;
+    }
+	int i=0;
+	list_t* level_list=current->pool->queue+level;
+	if(list_empty(level_list)){
+		return -ESRCH;
+	}
+	list_head* pos;
+	list_for_each(pos,level_list){
+		if(list_entry(pos,task_t,pid)==pid){
+			return i;
+		}
+		i++;
+	}
+	return -ESRCH;
+}
+

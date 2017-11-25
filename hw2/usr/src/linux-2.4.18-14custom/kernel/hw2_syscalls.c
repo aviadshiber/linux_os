@@ -65,18 +65,6 @@ int sys_sacrifice_timeslice(pid_t pid){
     return currentTimeSlice;
 }
 
-int sys_search_pool_level(pid_t pid,int level){
-    if(level < 0 || level > MAX_PRIO -1){
-        return -EINVAL;
-    }
-    //we need to search for the pid in the pool array here 
-/*
-    if(){ //if not found in the given level in the pool array!
-        return -ESRCH;
-    }
-    */
-    
-    return 0; // return it's place (from 0 to n) in it's queue
-}
+
 
 
