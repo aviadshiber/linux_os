@@ -61,7 +61,6 @@ int sys_sacrifice_timeslice(pid_t pid){
     int currentTimeSlice=current->time_slice;
     current->sacrafice=1; //the current_time slice will be nullified in tick according to this flag
     found_task->time_slice+=currentTimeSlice;
-    //TODO: return amound of time sacrficed time
     return currentTimeSlice;
 }
 

@@ -213,12 +213,7 @@ static inline void rq_unlock(runqueue_t *rq)
 static inline void dequeue_task(struct task_struct *p, prio_array_t *array)
 {
 	array->nr_active--;
-	//  if(p->policy == SCHED_POOL){	//hw2 - in this case array is the pool
-	//  //so, the place to remove from queue is the prio
-	//  	list_del(p->pool->queue[p->prio].next); //is it okay? not sure yet
-	//  }else{
-		 list_del(&p->run_list);
-	 //}
+	list_del(&p->run_list);
 		
 	
 	if (list_empty(array->queue + p->prio))
@@ -227,13 +222,7 @@ static inline void dequeue_task(struct task_struct *p, prio_array_t *array)
 
 static inline void enqueue_task(struct task_struct *p, prio_array_t *array)
 {
-	
-	// if(p->policy == SCHED_POOL){	//hw2 - in this case array is the pool
-	// 	list_add_tail(array->queue + p->prio,&p->run_list);
-	// }else{
-	 	list_add_tail(&p->run_list, array->queue + p->prio);
-	// }
-	
+	list_add_tail(&p->run_list, array->queue + p->prio);
 	__set_bit(p->prio, array->bitmap);
 	array->nr_active++;
 	p->array = array;
@@ -753,10 +742,7 @@ void scheduler_tick(int user_tick, int system)
 		p->time_slice=1;
 		p->sacrafice=0;
 	}
-	// if(p->state == TASK_RUNNING){				//not the right place to check this
-	// 	p->total_time_in_runqueue++;
-	// }
-	/* hw2 handling end*/	
+	
 	if (p == rq->idle) {
 		if (local_bh_count(cpu) || local_irq_count(cpu) > 1)
 			kstat.per_cpu_system[cpu] += system;
@@ -867,7 +853,7 @@ need_resched:
 #if CONFIG_SMP
 pick_next_task:
 #endif
-	if (unlikely(!rq->nr_running)) { //TODO: if (unlikely(!rq->nr_running) || ( (rq->the_pool->nr_active == rq->nr_running)&&(time_pool==0) ) )
+	if (unlikely(!rq->nr_running) || ( (rq->the_pool->nr_active == rq->nr_running))) { //TODO: if (unlikely(!rq->nr_running) || ( (rq->the_pool->nr_active == rq->nr_running)&&(time_pool==0) ) )
 #if CONFIG_SMP
 		load_balance(rq, 1);
 		if (rq->nr_running)
@@ -1687,7 +1673,7 @@ void __init sched_init(void)
 		rq->pool = rq->arrays + 2;	//hw2 - added
 		spin_lock_init(&rq->lock);
 		INIT_LIST_HEAD(&rq->migration_queue);
-
+		//here we initialize each prio_array_t we declared in runqueue
 		for (j = 0; j < 3; j++) {	//changed to 3
 			array = rq->arrays + j;	
 			for (k = 0; k < MAX_PRIO; k++) {
