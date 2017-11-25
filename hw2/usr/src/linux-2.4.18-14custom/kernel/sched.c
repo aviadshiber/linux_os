@@ -386,6 +386,9 @@ repeat_lock_task:
 		if (old_state == TASK_UNINTERRUPTIBLE)
 			rq->nr_uninterruptible--;
 		activate_task(p, rq);
+		/* hw2 */
+		p->last_start_running_time=jiffies;
+		/* hw2 */
 		/*
 		 * If sync is set, a resched_task() is a NOOP
 		 */
@@ -421,6 +424,9 @@ void wake_up_forked_process(task_t * p)
 	}
 	p->cpu = smp_processor_id();
 	activate_task(p, rq);
+	/* hw2 */
+	p->last_start_running_time=jiffies;
+	/* hw2 */
 
 	rq_unlock(rq);
 }
@@ -741,9 +747,9 @@ void scheduler_tick(int user_tick, int system)
 		p->time_slice=1;
 		p->sacrafice=0;
 	}
-	if(p->state == TASK_RUNNING){				//hw2 need to fix this!
-		p->total_time_in_runqueue++;
-	}
+	// if(p->state == TASK_RUNNING){				//not the right place to check this
+	// 	p->total_time_in_runqueue++;
+	// }
 	/* hw2 handling end*/	
 	if (p == rq->idle) {
 		if (local_bh_count(cpu) || local_irq_count(cpu) > 1)
@@ -848,6 +854,10 @@ need_resched:
 		}
 	default:
 		deactivate_task(prev, rq);
+		/* hw2 */
+		prev->total_time_in_runqueue+= (jiffies-prev->last_start_running_time);
+		/* hw2 */
+
 	case TASK_RUNNING:
 		;
 	}
@@ -1637,6 +1647,9 @@ void __init init_idle(task_t *idle, int cpu)
 	idle->array = NULL;
 	idle->prio = MAX_PRIO;
 	idle->state = TASK_RUNNING;
+	/* hw2 */
+	idle->last_start_running_time=jiffies;
+	/* hw2 */
 	idle->cpu = cpu;
 	double_rq_unlock(idle_rq, rq);
 	set_tsk_need_resched(idle);

@@ -458,6 +458,7 @@ struct task_struct {
 	unsigned long total_processor_usage_time; /* the actual run time */
 	unsigned long last_start_running_time; /*used to calc the delta time since start to end running */
 	unsigned long total_time_in_runqueue;
+	unsigned long entered_to_rq_time;
 	int sacrafice; /* sacrafice flag to check in every tick that his timeslice was sacraficed */
 };
 
@@ -567,6 +568,7 @@ extern struct exec_domain	default_exec_domain;
 	total_processor_usage_time:	0,						\
 	last_start_running_time:	0,						\
 	total_time_in_runqueue:	0,						\
+	entered_to_rq_time: 0,				\
 	sacrafice:	0,						\
 
 }
