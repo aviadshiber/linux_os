@@ -161,6 +161,7 @@ extern int set_user(uid_t new_ruid, int dumpclear);
 #define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
 extern signed long FASTCALL(schedule_timeout(signed long timeout));
 asmlinkage void schedule(void);
+int sys_search_pool_level(pid_t pid,int level); //HW2 PROTOTYPE
 
 extern int schedule_task(struct tq_struct *task);
 extern void flush_scheduled_tasks(void);
@@ -570,7 +571,6 @@ extern struct exec_domain	default_exec_domain;
 	total_time_in_runqueue:	0,						\
 	entered_to_rq_time: 0,				\
 	sacrafice:	0,						\
-
 }
 
 

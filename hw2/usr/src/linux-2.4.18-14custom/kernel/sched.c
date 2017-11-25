@@ -853,7 +853,7 @@ need_resched:
 #if CONFIG_SMP
 pick_next_task:
 #endif
-	if (unlikely(!rq->nr_running) || ( (rq->the_pool->nr_active == rq->nr_running))) { //TODO: if (unlikely(!rq->nr_running) || ( (rq->the_pool->nr_active == rq->nr_running)&&(time_pool==0) ) )
+	if (unlikely(!rq->nr_running) || ( (rq->pool->nr_active == rq->nr_running))) { //TODO: if (unlikely(!rq->nr_running) || ( (rq->the_pool->nr_active == rq->nr_running)&&(time_pool==0) ) )
 #if CONFIG_SMP
 		load_balance(rq, 1);
 		if (rq->nr_running)
@@ -1415,9 +1415,10 @@ out_unlock:
 
 asmlinkage long sys_sched_yield(void)
 {
+	int i;
 	runqueue_t *rq = this_rq_lock();
 	prio_array_t *array = current->array;
-	int i;
+	
 
 	if (unlikely(rt_task(current))) {
 		list_del(&current->run_list);
@@ -1959,15 +1960,15 @@ struct low_latency_enable_struct __enable_lowlatency = { 0, };
 #endif	/* LOWLATENCY_NEEDED */
 
 int sys_search_pool_level(pid_t pid,int level){
-    if(level < 0 || level > MAX_PRIO -1){
+    int i=0;
+	struct list_head* pos;
+	if(level < 0 || level > MAX_PRIO -1){
         return -EINVAL;
     }
-	int i=0;
-	list_t* level_list=current->pool->queue+level;
+	list_t* level_list= ((current->array+2)->queue)+level;
 	if(list_empty(level_list)){
 		return -ESRCH;
 	}
-	list_head* pos;
 	list_for_each(pos,level_list){
 		if(list_entry(pos,task_t,pid)==pid){
 			return i;
