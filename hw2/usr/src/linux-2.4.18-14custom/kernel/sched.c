@@ -213,12 +213,12 @@ static inline void rq_unlock(runqueue_t *rq)
 static inline void dequeue_task(struct task_struct *p, prio_array_t *array)
 {
 	array->nr_active--;
-	 if(p->policy == SCHED_POOL){	//hw2 - in this case array is the pool
-	 //so, the place to remove from queue is the prio
-	 	list_del(p->pool->queue[p->prio].next); //is it okay? not sure yet
-	 }else{
+	//  if(p->policy == SCHED_POOL){	//hw2 - in this case array is the pool
+	//  //so, the place to remove from queue is the prio
+	//  	list_del(p->pool->queue[p->prio].next); //is it okay? not sure yet
+	//  }else{
 		 list_del(&p->run_list);
-	 }
+	 //}
 		
 	
 	if (list_empty(array->queue + p->prio))
@@ -228,11 +228,11 @@ static inline void dequeue_task(struct task_struct *p, prio_array_t *array)
 static inline void enqueue_task(struct task_struct *p, prio_array_t *array)
 {
 	
-	if(p->policy == SCHED_POOL){	//hw2 - in this case array is the pool
-		list_add_tail(array->queue + p->prio,&p->run_list);
-	}else{
-		list_add_tail(&p->run_list, array->queue + p->prio);
-	}
+	// if(p->policy == SCHED_POOL){	//hw2 - in this case array is the pool
+	// 	list_add_tail(array->queue + p->prio,&p->run_list);
+	// }else{
+	 	list_add_tail(&p->run_list, array->queue + p->prio);
+	// }
 	
 	__set_bit(p->prio, array->bitmap);
 	array->nr_active++;
@@ -268,7 +268,8 @@ static inline int effective_prio(task_t *p)
 static inline void activate_task(task_t *p, runqueue_t *rq)
 {
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
-	prio_array_t *array = rq->active;
+	
+	prio_array_t *array =  rq->active;
 
 	if (!rt_task(p) && sleep_time) {
 		/*
@@ -289,10 +290,11 @@ static inline void activate_task(task_t *p, runqueue_t *rq)
 
 static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
+	int idx= (SCHED_POOL == p->policy ? 2 : 0);
 	rq->nr_running--;
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
-	dequeue_task(p, p->array);
+	dequeue_task(p, p->array+idx);
 	p->array = NULL;
 }
 
