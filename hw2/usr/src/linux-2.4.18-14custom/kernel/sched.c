@@ -269,28 +269,32 @@ static inline void activate_task(task_t *p, runqueue_t *rq)
 {
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
 	
-	prio_array_t *array =  rq->active;
-
-	if (!rt_task(p) && sleep_time) {
-		/*
-		 * This code gives a bonus to interactive tasks. We update
-		 * an 'average sleep time' value here, based on
-		 * sleep_timestamp. The more time a task spends sleeping,
-		 * the higher the average gets - and the higher the priority
-		 * boost gets as well.
-		 */
-		p->sleep_avg += sleep_time;
-		if (p->sleep_avg > MAX_SLEEP_AVG)
-			p->sleep_avg = MAX_SLEEP_AVG;
-		p->prio = effective_prio(p);
+	//prio_array_t *array =  rq->active;
+	if(SCHED_POOL == p->policy){
+		enqueue_task(p, rq->pool);
 	}
-	enqueue_task(p, array);
+	else{
+		if (!rt_task(p) && sleep_time) {
+			/*
+			* This code gives a bonus to interactive tasks. We update
+			* an 'average sleep time' value here, based on
+			* sleep_timestamp. The more time a task spends sleeping,
+			* the higher the average gets - and the higher the priority
+			* boost gets as well.
+			*/
+			p->sleep_avg += sleep_time;
+			if (p->sleep_avg > MAX_SLEEP_AVG)
+				p->sleep_avg = MAX_SLEEP_AVG;
+			p->prio = effective_prio(p);
+		}
+		enqueue_task(p, rq->active);
+	}
 	rq->nr_running++;
 }
 
 static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
-	int idx= (SCHED_POOL == p->policy ? 2 : 0);
+	int idx= (SCHED_POOL == p->policy ? 2 : 0);//hw2- was always 0 before
 	rq->nr_running--;
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
@@ -389,7 +393,7 @@ repeat_lock_task:
 			rq->nr_uninterruptible--;
 		activate_task(p, rq);
 		/* hw2 */
-		p->last_start_running_time=jiffies;
+		p->entered_to_rq_time=jiffies;
 		/* hw2 */
 		/*
 		 * If sync is set, a resched_task() is a NOOP
@@ -427,7 +431,7 @@ void wake_up_forked_process(task_t * p)
 	p->cpu = smp_processor_id();
 	activate_task(p, rq);
 	/* hw2 */
-	p->last_start_running_time=jiffies;
+	p->entered_to_rq_time=jiffies;
 	/* hw2 */
 
 	rq_unlock(rq);
@@ -843,11 +847,12 @@ need_resched:
 
 	release_kernel_lock(prev, smp_processor_id());
 	prepare_arch_schedule(prev);
-	//hw2
+	
 	prev->sleep_timestamp = jiffies;
+	//hw2
 	prev->total_processor_usage_time += (prev->last_start_running_time ? (jiffies- prev->last_start_running_time) : 0);
-	spin_lock_irq(&rq->lock);
 	//hw2 end
+	spin_lock_irq(&rq->lock);
 	switch (prev->state) {
 	case TASK_INTERRUPTIBLE:
 		if (unlikely(signal_pending(prev))) {
@@ -856,10 +861,6 @@ need_resched:
 		}
 	default:
 		deactivate_task(prev, rq);
-		/* hw2 */
-		prev->total_time_in_runqueue+= (jiffies-prev->last_start_running_time);
-		/* hw2 */
-
 	case TASK_RUNNING:
 		;
 	}
@@ -1022,7 +1023,9 @@ void wait_for_completion(struct completion *x)
 void interruptible_sleep_on(wait_queue_head_t *q)
 {
 	SLEEP_ON_VAR
-
+	if(TASK_RUNNING == current->state){ //HW2
+		current->total_time_in_runqueue+= jiffies - current->entered_to_rq_time;
+	}
 	current->state = TASK_INTERRUPTIBLE;
 
 	SLEEP_ON_HEAD
@@ -1033,7 +1036,9 @@ void interruptible_sleep_on(wait_queue_head_t *q)
 long interruptible_sleep_on_timeout(wait_queue_head_t *q, long timeout)
 {
 	SLEEP_ON_VAR
-
+	if(TASK_RUNNING == current->state){ //HW2
+		current->total_time_in_runqueue+= jiffies - current->entered_to_rq_time;
+	}
 	current->state = TASK_INTERRUPTIBLE;
 
 	SLEEP_ON_HEAD
@@ -1046,7 +1051,9 @@ long interruptible_sleep_on_timeout(wait_queue_head_t *q, long timeout)
 void sleep_on(wait_queue_head_t *q)
 {
 	SLEEP_ON_VAR
-	
+	if(TASK_RUNNING == current->state){ //HW2
+		current->total_time_in_runqueue+= jiffies - current->entered_to_rq_time;
+	}
 	current->state = TASK_UNINTERRUPTIBLE;
 
 	SLEEP_ON_HEAD
@@ -1057,7 +1064,9 @@ void sleep_on(wait_queue_head_t *q)
 long sleep_on_timeout(wait_queue_head_t *q, long timeout)
 {
 	SLEEP_ON_VAR
-	
+	if(TASK_RUNNING == current->state){ //HW2
+		current->total_time_in_runqueue+= jiffies - current->entered_to_rq_time;
+	}
 	current->state = TASK_UNINTERRUPTIBLE;
 
 	SLEEP_ON_HEAD
