@@ -16,6 +16,9 @@ int sys_get_remaining_timeslice(pid_t pid){
         return -EINVAL;
     }
     //should we return zero timeslice on zombie?
+    if(found_task->state==TASK_ZOMBIE){
+        return 0;
+    }
     return found_task->time_slice;
 }
 
