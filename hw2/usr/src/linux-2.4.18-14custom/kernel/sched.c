@@ -876,7 +876,7 @@ switch_tasks:
 	
 		prepare_arch_switch(rq);
 		prev = context_switch(prev, next);
-		prev->last_start_running_time=jiffes;// hw2
+		//prev->last_start_running_time=jiffies;// hw2
 		barrier();
 		rq = this_rq();
 		finish_arch_switch(rq);
