@@ -138,7 +138,7 @@ struct runqueue {
 	unsigned long nr_running, nr_switches, expired_timestamp;
 	signed long nr_uninterruptible;
 	task_t *curr, *idle;
-	prio_array_t *active, *expired, *pool, arrays[3]; 			//hw2 -added pool array
+	prio_array_t *active, *expired,*pool, arrays[3]; 			//hw2: added pool array 
 	int prev_nr_running[NR_CPUS];
 	task_t *migration_thread;
 	list_t migration_queue;
@@ -214,8 +214,6 @@ static inline void dequeue_task(struct task_struct *p, prio_array_t *array)
 {
 	array->nr_active--;
 	list_del(&p->run_list);
-		
-	
 	if (list_empty(array->queue + p->prio))
 		__clear_bit(p->prio, array->bitmap);
 }
@@ -257,33 +255,32 @@ static inline int effective_prio(task_t *p)
 static inline void activate_task(task_t *p, runqueue_t *rq)
 {
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
-	
-	//prio_array_t *array =  rq->active;
-	if(SCHED_POOL == p->policy){
-		enqueue_task(p, rq->pool);
+	prio_array_t *array;
+	if(p->policy == SCHED_POOL){					//hw2 added
+		array=rq->pool;
+	}else{
+		array = rq->active;
 	}
-	else{
-		if (!rt_task(p) && sleep_time) {
-			/*
-			* This code gives a bonus to interactive tasks. We update
-			* an 'average sleep time' value here, based on
-			* sleep_timestamp. The more time a task spends sleeping,
-			* the higher the average gets - and the higher the priority
-			* boost gets as well.
-			*/
-			p->sleep_avg += sleep_time;
-			if (p->sleep_avg > MAX_SLEEP_AVG)
-				p->sleep_avg = MAX_SLEEP_AVG;
-			p->prio = effective_prio(p);
-		}
-		enqueue_task(p, rq->active);
+	if (!rt_task(p) && sleep_time && p->policy != SCHED_POOL) {			//hw2 added
+		/*
+		 * This code gives a bonus to interactive tasks. We update
+		 * an 'average sleep time' value here, based on
+		 * sleep_timestamp. The more time a task spends sleeping,
+		 * the higher the average gets - and the higher the priority
+		 * boost gets as well.
+		 */
+		p->sleep_avg += sleep_time;
+		if (p->sleep_avg > MAX_SLEEP_AVG)
+			p->sleep_avg = MAX_SLEEP_AVG;
+		p->prio = effective_prio(p);
 	}
+	enqueue_task(p, array);
 	rq->nr_running++;
 }
 
 static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
-	int idx= (SCHED_POOL == p->policy ? 2 : 0);//hw2- was always 0 before
+	int idx= (SCHED_POOL == p->policy ? 2 : 0);		//hw2- was always 0 before
 	rq->nr_running--;
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
@@ -381,9 +378,6 @@ repeat_lock_task:
 		if (old_state == TASK_UNINTERRUPTIBLE)
 			rq->nr_uninterruptible--;
 		activate_task(p, rq);
-		/* hw2 */
-		p->entered_to_rq_time=jiffies;
-		/* hw2 */
 		/*
 		 * If sync is set, a resched_task() is a NOOP
 		 */
@@ -419,9 +413,6 @@ void wake_up_forked_process(task_t * p)
 	}
 	p->cpu = smp_processor_id();
 	activate_task(p, rq);
-	/* hw2 */
-	p->entered_to_rq_time=jiffies;
-	/* hw2 */
 
 	rq_unlock(rq);
 }
@@ -737,12 +728,7 @@ void scheduler_tick(int user_tick, int system)
 	int cpu = smp_processor_id();
 	runqueue_t *rq = this_rq();
 	task_t *p = current;
-	/* hw2 handling */
-	if(p->sacrafice){
-		p->time_slice=1;
-		p->sacrafice=0;
-	}
-	
+
 	if (p == rq->idle) {
 		if (local_bh_count(cpu) || local_irq_count(cpu) > 1)
 			kstat.per_cpu_system[cpu] += system;
@@ -833,12 +819,9 @@ need_resched:
 
 	release_kernel_lock(prev, smp_processor_id());
 	prepare_arch_schedule(prev);
-	
 	prev->sleep_timestamp = jiffies;
-	//hw2
-	prev->total_processor_usage_time += (prev->last_start_running_time ? (jiffies- prev->last_start_running_time) : 0);
-	//hw2 end
 	spin_lock_irq(&rq->lock);
+
 	switch (prev->state) {
 	case TASK_INTERRUPTIBLE:
 		if (unlikely(signal_pending(prev))) {
@@ -853,7 +836,7 @@ need_resched:
 #if CONFIG_SMP
 pick_next_task:
 #endif
-	if (unlikely(!rq->nr_running) || ( (rq->pool->nr_active == rq->nr_running))) { //TODO: if (unlikely(!rq->nr_running) || ( (rq->the_pool->nr_active == rq->nr_running)&&(time_pool==0) ) )
+	if (unlikely(!rq->nr_running)) {
 #if CONFIG_SMP
 		load_balance(rq, 1);
 		if (rq->nr_running)
@@ -889,10 +872,6 @@ switch_tasks:
 	
 		prepare_arch_switch(rq);
 		prev = context_switch(prev, next);
-		/* hw2 */
-		prev->last_start_running_time=jiffies;
-		prev->entered_to_rq_time=jiffies;
-		/* hw2 */
 		barrier();
 		rq = this_rq();
 		finish_arch_switch(rq);
@@ -1010,9 +989,7 @@ void wait_for_completion(struct completion *x)
 void interruptible_sleep_on(wait_queue_head_t *q)
 {
 	SLEEP_ON_VAR
-	if(TASK_RUNNING == current->state){ //HW2
-		current->total_time_in_runqueue+= jiffies - current->entered_to_rq_time;
-	}
+
 	current->state = TASK_INTERRUPTIBLE;
 
 	SLEEP_ON_HEAD
@@ -1023,9 +1000,7 @@ void interruptible_sleep_on(wait_queue_head_t *q)
 long interruptible_sleep_on_timeout(wait_queue_head_t *q, long timeout)
 {
 	SLEEP_ON_VAR
-	if(TASK_RUNNING == current->state){ //HW2
-		current->total_time_in_runqueue+= jiffies - current->entered_to_rq_time;
-	}
+
 	current->state = TASK_INTERRUPTIBLE;
 
 	SLEEP_ON_HEAD
@@ -1038,9 +1013,7 @@ long interruptible_sleep_on_timeout(wait_queue_head_t *q, long timeout)
 void sleep_on(wait_queue_head_t *q)
 {
 	SLEEP_ON_VAR
-	if(TASK_RUNNING == current->state){ //HW2
-		current->total_time_in_runqueue+= jiffies - current->entered_to_rq_time;
-	}
+	
 	current->state = TASK_UNINTERRUPTIBLE;
 
 	SLEEP_ON_HEAD
@@ -1051,9 +1024,7 @@ void sleep_on(wait_queue_head_t *q)
 long sleep_on_timeout(wait_queue_head_t *q, long timeout)
 {
 	SLEEP_ON_VAR
-	if(TASK_RUNNING == current->state){ //HW2
-		current->total_time_in_runqueue+= jiffies - current->entered_to_rq_time;
-	}
+	
 	current->state = TASK_UNINTERRUPTIBLE;
 
 	SLEEP_ON_HEAD
@@ -1201,7 +1172,7 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	else {
 		retval = -EINVAL;
 		if (policy != SCHED_FIFO && policy != SCHED_RR &&
-				policy != SCHED_OTHER && policy != SCHED_POOL) //added new policy check
+				policy != SCHED_OTHER && policy != SCHED_POOL)			//hw2 added check
 			goto out_unlock;
 	}
 
@@ -1211,7 +1182,7 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	 */
 	retval = -EINVAL;
 	if(policy == SCHED_POOL){
-		if( lp.sched_priority<0 && lp.sched_priority >= MAX_PRIO ){		//hw2 if added
+		if( lp.sched_priority<0 || lp.sched_priority >= MAX_PRIO ){		//hw2 pool prio check
 			goto out_unlock;
 		}
 	}else{
@@ -1222,13 +1193,12 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	}
 
 	retval = -EPERM;
-	if ((policy == SCHED_FIFO || policy == SCHED_RR) &&		///hw2 do we need to change here?
+	if ((policy == SCHED_FIFO || policy == SCHED_RR) &&
 	    !capable(CAP_SYS_NICE))
 		goto out_unlock;
 	if ((current->euid != p->euid) && (current->euid != p->uid) &&
 	    !capable(CAP_SYS_NICE))
 		goto out_unlock;
-
 	array = p->array;
 	if (array)
 		deactivate_task(p, task_rq(p));
@@ -1236,7 +1206,7 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	p->policy = policy;
 	p->rt_priority = lp.sched_priority;
 	if(policy == SCHED_POOL){
-		p->prio=lp.sched_priority;							//hw2 should we keep prio?
+		p->prio=lp.sched_priority;							//hw2 pool prio isnt changing
 	}else{
 		if (policy != SCHED_OTHER)
 			p->prio = MAX_USER_RT_PRIO-1 - p->rt_priority;
@@ -1415,10 +1385,9 @@ out_unlock:
 
 asmlinkage long sys_sched_yield(void)
 {
-	int i;
 	runqueue_t *rq = this_rq_lock();
 	prio_array_t *array = current->array;
-	
+	int i;
 
 	if (unlikely(rt_task(current))) {
 		list_del(&current->run_list);
@@ -1646,9 +1615,6 @@ void __init init_idle(task_t *idle, int cpu)
 	idle->array = NULL;
 	idle->prio = MAX_PRIO;
 	idle->state = TASK_RUNNING;
-	/* hw2 */
-	idle->last_start_running_time=jiffies;
-	/* hw2 */
 	idle->cpu = cpu;
 	double_rq_unlock(idle_rq, rq);
 	set_tsk_need_resched(idle);
@@ -1671,12 +1637,12 @@ void __init sched_init(void)
 		rq = cpu_rq(i);
 		rq->active = rq->arrays;
 		rq->expired = rq->arrays + 1;
-		rq->pool = rq->arrays + 2;	//hw2 - added
+		rq->pool = rq->arrays +2;				//hw2 added pool to array
 		spin_lock_init(&rq->lock);
 		INIT_LIST_HEAD(&rq->migration_queue);
-		//here we initialize each prio_array_t we declared in runqueue
-		for (j = 0; j < 3; j++) {	//changed to 3
-			array = rq->arrays + j;	
+
+		for (j = 0; j < 3; j++) {				//hw2 - changed to 3
+			array = rq->arrays + j;
 			for (k = 0; k < MAX_PRIO; k++) {
 				INIT_LIST_HEAD(array->queue + k);
 				__clear_bit(k, array->bitmap);
@@ -1959,10 +1925,10 @@ struct low_latency_enable_struct __enable_lowlatency = { 0, };
 
 #endif	/* LOWLATENCY_NEEDED */
 
-int sys_search_pool_level(pid_t pid,int level){
+int sys_search_pool_level(pid_t pid,int level){		//added hw2	
     int i=0;
 	struct list_head* pos;
-	if(level < 0 || level > MAX_PRIO -1){
+	if(level < 0 || level > MAX_PRIO -1 ){			
         return -EINVAL;
     }
 	list_t* level_list= ((current->array+2)->queue)+level;
@@ -1970,11 +1936,10 @@ int sys_search_pool_level(pid_t pid,int level){
 		return -ESRCH;
 	}
 	list_for_each(pos,level_list){
-		if(list_entry(pos,task_t,pid)==pid){
+		if(list_entry(pos,task_t,pid) == pid){
 			return i;
 		}
 		i++;
 	}
 	return -ESRCH;
 }
-
