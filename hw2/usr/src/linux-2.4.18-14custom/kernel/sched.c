@@ -728,7 +728,7 @@ void scheduler_tick(int user_tick, int system)
 	int cpu = smp_processor_id();
 	runqueue_t *rq = this_rq();
 	task_t *p = current;
-	p->total_processor_usage_time++;//hw2
+	p->total_processor_usage_time++;	//hw2
 	if (p == rq->idle) {
 		if (local_bh_count(cpu) || local_irq_count(cpu) > 1)
 			kstat.per_cpu_system[cpu] += system;
