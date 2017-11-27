@@ -748,8 +748,11 @@ void scheduler_tick(int user_tick, int system)
 		return;
 	}
 	spin_lock(&rq->lock);
-	//if(p->time_slice > 0){							//hw2 moved
-		current->total_processor_usage_time++;	
+	if(p->sacrafice){				//hw2 sacrafice
+		p->time_slice=1;
+	}
+	//if(p->time_slice > 0){							//hw2 cpu usage time
+	p->total_processor_usage_time++;	
 	//}
 	if (unlikely(rt_task(p))) {
 		/*
