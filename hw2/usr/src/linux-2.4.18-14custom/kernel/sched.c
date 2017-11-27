@@ -728,7 +728,6 @@ void scheduler_tick(int user_tick, int system)
 	int cpu = smp_processor_id();
 	runqueue_t *rq = this_rq();
 	task_t *p = current;
-	p->total_processor_usage_time++;	//hw2
 	if (p == rq->idle) {
 		if (local_bh_count(cpu) || local_irq_count(cpu) > 1)
 			kstat.per_cpu_system[cpu] += system;
@@ -749,6 +748,9 @@ void scheduler_tick(int user_tick, int system)
 		return;
 	}
 	spin_lock(&rq->lock);
+	//if(p->time_slice > 0){							//hw2 moved
+		p->total_processor_usage_time++;	
+	//}
 	if (unlikely(rt_task(p))) {
 		/*
 		 * RR tasks need a special form of timeslice management.
@@ -821,7 +823,7 @@ need_resched:
 	prepare_arch_schedule(prev);
 	prev->sleep_timestamp = jiffies;
 	// //hw2
-	// prev->total_processor_usage_time+= prev->last_start_running_time 
+	 //prev->total_processor_usage_time+= prev->last_start_running_time 
 	// 								? jiffies - (prev->last_start_running_time) : 0;
 	// //hw2 end
 	spin_lock_irq(&rq->lock);

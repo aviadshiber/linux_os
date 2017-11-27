@@ -5,6 +5,7 @@
 #include <termios.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <limits.h>
 
 
 int get_remaining_timeslice(pid_t pid){

@@ -10,30 +10,49 @@
 #define ASSERT_TIME(DELTA,RESULT) assert(delta-RESULT<=300)
 
 void test_total_cpu_usage(){
+    // int pid=getpid();
+    // sleep(3);
+    // printf("\nusage time: %d\n",get_total_processor_usage(0));
+    // printf("\nusage time: %d\n",get_total_processor_usage(1));
+    // sleep(3);
+    // printf("\nusage time: %d\n",get_total_processor_usage(1));
+    // sleep(3);
+    // printf("\nusage time: %d\n",get_total_processor_usage(0));
+    // printf("\nusage time: %d\n",get_total_processor_usage(1));
+    // printf("\nusage time: %d\n",get_total_processor_usage(pid));
     pid_t son=fork();
     if(son==0){
+        int sonpid=getpid();
+        int usage=get_total_processor_usage(sonpid); 
+        printf("\n son's first usage time: %d\n",usage);
+        usage=get_total_processor_usage(sonpid); 
+        printf("\n son's first222222 usage time: %d\n",usage);
         unsigned long son_start=time(NULL);
-        sleep(3);
+        sleep(1);
         unsigned long son_end=time(NULL);
         unsigned long delta=son_end-son_start;
         printf("\n son's delta time: %lu\n",delta);
-        int sonpid=getpid();
-        unsigned long usage=get_total_processor_usage(sonpid); //we do not get the right time here
-         printf("\n son usage time1: %lu\n",usage);
+        usage=get_total_processor_usage(sonpid); //we do not get the right time here
+         printf("\n son's usage time1: %d\n",usage);
     }else{
+        //int usage=get_total_processor_usage(son); 
+        //printf("\n system time: %lu\n",time(NULL));
+        //printf("\n son usage time2: %d\n",usage);
         unsigned long fork_start=time(NULL);
         printf("\n fork start time: %lu\n",fork_start);
         wait(NULL);
         unsigned long fork_end=time(NULL);
         printf("\n fork end time: %lu\n",fork_end);
-        unsigned long usage=get_total_processor_usage(son); //we do not get the right time here
+        int usage=get_total_processor_usage(son);   //we do not get the right time here
         //printf("\n system time: %lu\n",time(NULL));
-        printf("\n son usage time: %lu\n",usage);
+        printf("\n son usage time3: %d\n",usage);
         unsigned long delta=fork_end-fork_start;
         printf("\n father's delta time: %lu\n",delta);
         ASSERT_TIME(delta,usage);
     }
-    printf("\n system time: %lu\n",time(NULL));
+    // printf("\n system time: %lu\n",time(NULL));
+    // printf("\n son usage time4: %d\n",get_total_processor_usage(son));
+    // printf("\n init usage time: %d\n",get_total_processor_usage(1));
 }
 //what happens when we try to add the same pid to other level in pool? or same place in pool?
 //what happens to a task pool when its dead?
