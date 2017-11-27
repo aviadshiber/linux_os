@@ -749,7 +749,7 @@ void scheduler_tick(int user_tick, int system)
 	}
 	spin_lock(&rq->lock);
 	//if(p->time_slice > 0){							//hw2 moved
-		p->total_processor_usage_time++;	
+		current->total_processor_usage_time++;	
 	//}
 	if (unlikely(rt_task(p))) {
 		/*

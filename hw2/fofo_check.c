@@ -8,6 +8,20 @@
  #include <stdio.h>
 
 #define ASSERT_TIME(DELTA,RESULT) assert(delta-RESULT<=300)
+#define N 100000000
+
+int do_some_work(int num){
+    int array[N];
+    int i;
+    int sum=0;
+    for(i=0;i<num;i++){
+        sum+=array[i];
+    }
+    for(i=num-1;i>0;i--){
+        sum+=array[i];
+    }
+    return sum;
+}
 
 void test_total_cpu_usage(){
     // int pid=getpid();
@@ -22,14 +36,18 @@ void test_total_cpu_usage(){
     // printf("\nusage time: %d\n",get_total_processor_usage(pid));
     pid_t son=fork();
     if(son==0){
+        int sum;
         int sonpid=getpid();
-        int usage=get_total_processor_usage(sonpid); 
-        printf("\n son's first usage time: %d\n",usage);
-        usage=get_total_processor_usage(sonpid); 
-        printf("\n son's first222222 usage time: %d\n",usage);
+        int usage;
+        // int usage=get_total_processor_usage(sonpid); 
+        // printf("\n son's first usage time: %d\n",usage);
+        // usage=get_total_processor_usage(sonpid); 
+        // printf("\n son's first222222 usage time: %d\n",usage);
         unsigned long son_start=time(NULL);
-        sleep(1);
+        printf("\n son's starting time: %lu\n",son_start);
+        sum=do_some_work(N);
         unsigned long son_end=time(NULL);
+        printf("\n son's ending time: %lu\n",son_end);
         unsigned long delta=son_end-son_start;
         printf("\n son's delta time: %lu\n",delta);
         usage=get_total_processor_usage(sonpid); //we do not get the right time here
@@ -54,6 +72,9 @@ void test_total_cpu_usage(){
     // printf("\n son usage time4: %d\n",get_total_processor_usage(son));
     // printf("\n init usage time: %d\n",get_total_processor_usage(1));
 }
+
+
+
 //what happens when we try to add the same pid to other level in pool? or same place in pool?
 //what happens to a task pool when its dead?
 void test_pool(){
