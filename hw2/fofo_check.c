@@ -17,6 +17,9 @@ void test_total_cpu_usage(){
         unsigned long son_end=time(NULL);
         unsigned long delta=son_end-son_start;
         printf("\n son's delta time: %lu\n",delta);
+        int sonpid=getpid();
+        unsigned long usage=get_total_processor_usage(sonpid); //we do not get the right time here
+         printf("\n son usage time1: %lu\n",usage);
     }else{
         unsigned long fork_start=time(NULL);
         printf("\n fork start time: %lu\n",fork_start);
@@ -24,12 +27,13 @@ void test_total_cpu_usage(){
         unsigned long fork_end=time(NULL);
         printf("\n fork end time: %lu\n",fork_end);
         unsigned long usage=get_total_processor_usage(son); //we do not get the right time here
+        //printf("\n system time: %lu\n",time(NULL));
         printf("\n son usage time: %lu\n",usage);
         unsigned long delta=fork_end-fork_start;
         printf("\n father's delta time: %lu\n",delta);
         ASSERT_TIME(delta,usage);
     }
-
+    printf("\n system time: %lu\n",time(NULL));
 }
 //what happens when we try to add the same pid to other level in pool? or same place in pool?
 //what happens to a task pool when its dead?
@@ -71,7 +75,7 @@ int main(){
     
 
     test_total_cpu_usage();
-    test_pool();
+    //test_pool();
     // time_t start=time(NULL);
    
     // pid_t f=fork();
