@@ -460,6 +460,7 @@ struct task_struct {
 	unsigned long last_start_running_time; /*used to calc the delta time since start to end running */
 	unsigned long total_time_in_runqueue;
 	unsigned long entered_to_rq_time;
+	short prev_policy;
 	int sacrafice; /* sacrafice flag to check in every tick that his timeslice was sacraficed */
 };
 

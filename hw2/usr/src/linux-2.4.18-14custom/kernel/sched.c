@@ -821,8 +821,8 @@ need_resched:
 	prepare_arch_schedule(prev);
 	prev->sleep_timestamp = jiffies;
 	// //hw2
-	// prev->total_processor_usage_time+= prev->last_start_running_time 
-	// 								? jiffies - (prev->last_start_running_time) : 0;
+	 prev->total_processor_usage_time+= (prev->last_start_running_time 
+									? jiffies - (prev->last_start_running_time) : 0);
 	// //hw2 end
 	spin_lock_irq(&rq->lock);
 
@@ -875,8 +875,8 @@ switch_tasks:
 		rq->curr = next;
 	
 		prepare_arch_switch(rq);
+		prev->last_start_running_time=jiffies;// hw2
 		prev = context_switch(prev, next);
-		//prev->last_start_running_time=jiffies;// hw2
 		barrier();
 		rq = this_rq();
 		finish_arch_switch(rq);
@@ -1161,7 +1161,7 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	read_lock_irq(&tasklist_lock);
 
 	p = find_process_by_pid(pid);
-
+	
 	retval = -ESRCH;
 	if (!p)
 		goto out_unlock_tasklist;
