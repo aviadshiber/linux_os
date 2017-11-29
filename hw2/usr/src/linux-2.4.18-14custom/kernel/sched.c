@@ -255,6 +255,7 @@ static inline int effective_prio(task_t *p)
 static inline void activate_task(task_t *p, runqueue_t *rq)
 {
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
+	p->entered_to_rq_time=jiffies; //hw2
 	prio_array_t *array;
 	if(p->policy == SCHED_POOL){					//hw2 added
 		array=rq->pool;
@@ -282,12 +283,11 @@ static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
 	int idx= (SCHED_POOL == p->policy ? 2 : 0);		//hw2- was always 0 before
 	rq->nr_running--;
-	// //hw2
-	if(TASK_RUNNING == p->state){
-	  p->total_time_in_runqueue+= (p->entered_to_rq_time 
-	 								? jiffies - (p->entered_to_rq_time) : 0);
-	}
-	// //hw2 end
+	 //hw2
+	 if(TASK_RUNNING == p->state){
+	  	p->total_time_in_runqueue += (p->entered_to_rq_time ? jiffies - (p->entered_to_rq_time) : 0);
+	 }
+	//hw2 end
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
 	dequeue_task(p, p->array+idx);
@@ -892,7 +892,6 @@ switch_tasks:
 	finish_arch_schedule(prev);
 	
 	reacquire_kernel_lock(current);
-	current->entered_to_rq_time=jiffies; //hw2
 	if (need_resched())
 		goto need_resched;
 }
