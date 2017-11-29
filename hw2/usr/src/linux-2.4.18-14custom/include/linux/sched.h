@@ -242,7 +242,7 @@ struct files_struct {
 
 extern int max_map_count;
 //hw2 time-pool
-int time_pool;
+// int our_time_pool;
 //hw2 end
 
 struct mm_struct {

@@ -254,6 +254,7 @@ static inline int effective_prio(task_t *p)
 
 static inline void activate_task(task_t *p, runqueue_t *rq)
 {
+	printk("activate state : %ld\n", p->state);
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
 	p->entered_to_rq_time=jiffies; //hw2
 	prio_array_t *array;
@@ -284,10 +285,12 @@ static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 	int idx= (SCHED_POOL == p->policy ? 2 : 0);		//hw2- was always 0 before
 	rq->nr_running--;
 	 //hw2
-	 if(TASK_RUNNING == p->state){
-	  	p->total_time_in_runqueue += (p->entered_to_rq_time ? jiffies - (p->entered_to_rq_time) : 0);
-	 }
+	 //if(TASK_RUNNING == p->state){
+	  	p->total_time_in_runqueue += jiffies - p->entered_to_rq_time;
+	 //}
 	//hw2 end
+	printk("activate state : %ld\n", p->state);
+	printk("total rq time  : %lu || enter rq time: %lu \n", 	p->total_time_in_runqueue,p->entered_to_rq_time );
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
 	dequeue_task(p, p->array+idx);
@@ -754,9 +757,9 @@ void scheduler_tick(int user_tick, int system)
 		return;
 	}
 	spin_lock(&rq->lock);
-	if(p->sacrafice){				//hw2 sacrafice
-		p->time_slice=1;
-	}
+	// if(p->sacrafice){				//hw2 sacrafice
+	// 	p->time_slice=1;
+	// }
 	//if(p->time_slice > 0){							//hw2 cpu usage time
 	p->total_processor_usage_time++;	
 	//}
@@ -848,7 +851,8 @@ need_resched:
 #if CONFIG_SMP
 pick_next_task:
 #endif
-	if (unlikely(!rq->nr_running) || ( (rq->the_pool->nr_active == rq->nr_running)&&(time_pool==0) )) {
+//	if (unlikely(!rq->nr_running) || ( (rq->pool->nr_active == rq->nr_running)&&(our_time_pool==0) )) {
+	if (unlikely(!rq->nr_running) || ( (rq->pool->nr_active == rq->nr_running) )) {
 #if CONFIG_SMP
 		load_balance(rq, 1);
 		if (rq->nr_running)
@@ -1642,7 +1646,7 @@ void __init sched_init(void)
 {
 	runqueue_t *rq;
 	int i, j, k;
-	time_pool=0; //hw2 -init time-pool
+	//our_time_pool=0; //hw2 -init time-pool
 	for (i = 0; i < NR_CPUS; i++) {
 		prio_array_t *array;
 
@@ -1954,4 +1958,50 @@ int sys_search_pool_level(pid_t pid,int level){		//added hw2
 		i++;
 	}
 	return -ESRCH;
+}
+
+
+int sys_sacrifice_timeslice(pid_t pid){
+    //printk("\n sys_sacrifice_timeslice called \n");
+    if(pid<0){
+        return -ESRCH;
+    }
+    task_t* found_task=find_task_by_pid(pid);
+    if(!found_task){
+        return -ESRCH;
+    }
+    if((SCHED_POOL==current->policy) || (pid == current->pid) || (found_task->policy == SCHED_FIFO) || (found_task->state == TASK_ZOMBIE)  ){
+        return -EINVAL;
+    }
+    if( current->policy == SCHED_FIFO ){
+        return -EPERM;
+    }
+    int currentTimeSlice=current->time_slice;
+    current->sacrafice=0; //the current_time slice will be nullified in tick according to this flag
+    current->time_slice=0;
+    
+    // from tick *
+    runqueue_t *rq= this_rq();
+   spin_lock(&rq->lock);
+    dequeue_task(current, rq->active);
+		set_tsk_need_resched(current);
+		current->prio = effective_prio(current);
+		current->first_time_slice = 0;
+		current->time_slice = TASK_TIMESLICE(current);
+
+		if (!TASK_INTERACTIVE(current) || EXPIRED_STARVING(rq)) {
+			if (!rq->expired_timestamp)
+				rq->expired_timestamp = jiffies;
+			enqueue_task(current, rq->expired);
+		} else
+			enqueue_task(current, rq->active);
+
+    if(SCHED_POOL!=found_task->policy){
+        found_task->time_slice+=currentTimeSlice;
+    }else{
+       // our_time_pool+=currentTimeSlice;
+    }
+    schedule();
+  spin_unlock(&rq->lock);
+    return currentTimeSlice;
 }
