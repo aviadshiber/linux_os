@@ -20,6 +20,10 @@ int sys_get_remaining_timeslice(pid_t pid){
     if(found_task->state==TASK_ZOMBIE){
         return 0;
     }
+    if(SCHED_POOL == found_task->policy){
+        return time_pool;
+    }
+
     return found_task->time_slice;
 }
 
@@ -65,7 +69,7 @@ int sys_sacrifice_timeslice(pid_t pid){
     if(!found_task){
         return -ESRCH;
     }
-    if( (pid == current->pid) || (found_task->policy == SCHED_FIFO) || (found_task->state == TASK_ZOMBIE)  ){
+    if((SCHED_POOL==current->policy) || (pid == current->pid) || (found_task->policy == SCHED_FIFO) || (found_task->state == TASK_ZOMBIE)  ){
         return -EINVAL;
     }
     if( current->policy == SCHED_FIFO ){
@@ -74,7 +78,11 @@ int sys_sacrifice_timeslice(pid_t pid){
     int currentTimeSlice=current->time_slice;
     current->sacrafice=1; //the current_time slice will be nullified in tick according to this flag
     current->time_slice=1;
-    found_task->time_slice+=currentTimeSlice;
+    if(SCHED_POOL!=found_task->policy){
+        found_task->time_slice+=currentTimeSlice;
+    }else{
+        time_pool+=currentTimeSlice;
+    }
     return currentTimeSlice;
 }
 

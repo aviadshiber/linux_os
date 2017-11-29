@@ -848,7 +848,7 @@ need_resched:
 #if CONFIG_SMP
 pick_next_task:
 #endif
-	if (unlikely(!rq->nr_running)) {
+	if (unlikely(!rq->nr_running) || ( (rq->the_pool->nr_active == rq->nr_running)&&(time_pool==0) )) {
 #if CONFIG_SMP
 		load_balance(rq, 1);
 		if (rq->nr_running)
@@ -1617,7 +1617,7 @@ void __init init_idle(task_t *idle, int cpu)
 {
 	runqueue_t *idle_rq = cpu_rq(cpu), *rq = cpu_rq(idle->cpu);
 	unsigned long flags;
-
+	
 	__save_flags(flags);
 	__cli();
 	double_rq_lock(idle_rq, rq);
@@ -1642,7 +1642,7 @@ void __init sched_init(void)
 {
 	runqueue_t *rq;
 	int i, j, k;
-
+	time_pool=0; //hw2 -init time-pool
 	for (i = 0; i < NR_CPUS; i++) {
 		prio_array_t *array;
 
