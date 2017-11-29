@@ -282,6 +282,12 @@ static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
 	int idx= (SCHED_POOL == p->policy ? 2 : 0);		//hw2- was always 0 before
 	rq->nr_running--;
+	// //hw2
+	if(TASK_RUNNING == p->state){
+	  p->total_time_in_runqueue+= (p->entered_to_rq_time 
+	 								? jiffies - (p->entered_to_rq_time) : 0);
+	}
+	// //hw2 end
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
 	dequeue_task(p, p->array+idx);
@@ -825,10 +831,7 @@ need_resched:
 	release_kernel_lock(prev, smp_processor_id());
 	prepare_arch_schedule(prev);
 	prev->sleep_timestamp = jiffies;
-	// //hw2
-	 prev->total_processor_usage_time+= (prev->last_start_running_time 
-									? jiffies - (prev->last_start_running_time) : 0);
-	// //hw2 end
+	
 	spin_lock_irq(&rq->lock);
 
 	switch (prev->state) {
@@ -880,7 +883,6 @@ switch_tasks:
 		rq->curr = next;
 	
 		prepare_arch_switch(rq);
-		prev->last_start_running_time=jiffies;// hw2
 		prev = context_switch(prev, next);
 		barrier();
 		rq = this_rq();
@@ -888,8 +890,9 @@ switch_tasks:
 	} else
 		spin_unlock_irq(&rq->lock);
 	finish_arch_schedule(prev);
-
+	
 	reacquire_kernel_lock(current);
+	current->entered_to_rq_time=jiffies; //hw2
 	if (need_resched())
 		goto need_resched;
 }
@@ -1943,10 +1946,10 @@ int sys_search_pool_level(pid_t pid,int level){		//added hw2
     }
 	list_t* level_list= ((current->array+2)->queue)+level;
 	if(list_empty(level_list)){
-		return -ESRCH;
+		return -ESRCH; 
 	}
 	list_for_each(pos,level_list){
-		if(list_entry(pos,task_t,pid) == pid){
+		if(list_entry(pos,task_t,run_list)->pid == pid){
 			return i;
 		}
 		i++;

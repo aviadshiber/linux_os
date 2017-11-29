@@ -110,12 +110,22 @@ void test_pool(){
         }
         //assert(search_pool_level(pid2copy,0)==0);           //success ??
 }
+void test_runqueue_time(){
+    
+    pid_t pid=getpid();
+    int start=get_total_time_in_runqueue(pid);
+    printf("\nstart time:%d\n",start);
+    do_some_work(N/2);
+    int end= get_total_time_in_runqueue(pid);
+    printf("\ndelta time:%d\n",end-start);
 
+}
 int main(){
     
 
-    test_total_cpu_usage();
-    //test_pool();
+    //test_total_cpu_usage();
+    test_runqueue_time();
+    test_pool();
     // time_t start=time(NULL);
    
     // pid_t f=fork();

@@ -1,6 +1,10 @@
 {
     "files.associations": {
         "xutility": "cpp",
-        "initializer_list": "c"
+        "initializer_list": "c",
+        "xtr1common": "cpp",
+        "iosfwd": "c",
+        "types.h": "c",
+        "errno.h": "c"
     }
 }

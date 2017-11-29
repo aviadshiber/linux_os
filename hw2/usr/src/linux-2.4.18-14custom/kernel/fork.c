@@ -786,9 +786,9 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 		current->need_resched = 1;
 	/* hw2 fork handling */
 	p->total_processor_usage_time=0;
-	p->last_start_running_time=0;
 	p->total_time_in_runqueue=0;
 	p->sacrafice=0;
+	p->entered_to_rq_time=0;
 	/* hw2 fork handling end */
 
 fork_out:

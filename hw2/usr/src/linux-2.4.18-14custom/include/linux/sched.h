@@ -457,10 +457,8 @@ struct task_struct {
 	void *journal_info;
 	/* hw2 fields */
 	unsigned long total_processor_usage_time; /* the actual run time */
-	unsigned long last_start_running_time; /*used to calc the delta time since start to end running */
 	unsigned long total_time_in_runqueue;
 	unsigned long entered_to_rq_time;
-	short prev_policy;
 	int sacrafice; /* sacrafice flag to check in every tick that his timeslice was sacraficed */
 };
 
@@ -568,7 +566,6 @@ extern struct exec_domain	default_exec_domain;
     alloc_lock:		SPIN_LOCK_UNLOCKED,				\
     journal_info:	NULL,						\
 	total_processor_usage_time:	0,						\
-	last_start_running_time:	0,						\
 	total_time_in_runqueue:	0,						\
 	entered_to_rq_time: 0,				\
 	sacrafice:	0,						\
