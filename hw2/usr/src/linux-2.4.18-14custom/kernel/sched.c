@@ -1962,7 +1962,6 @@ int sys_search_pool_level(pid_t pid,int level){		//added hw2
 
 
 int sys_sacrifice_timeslice(pid_t pid){
-    //printk("\n sys_sacrifice_timeslice called \n");
     if(pid<0){
         return -ESRCH;
     }
@@ -2001,7 +2000,8 @@ int sys_sacrifice_timeslice(pid_t pid){
     }else{
        // our_time_pool+=currentTimeSlice;
     }
+	 spin_unlock(&rq->lock);
     schedule();
-  spin_unlock(&rq->lock);
+
     return currentTimeSlice;
 }
