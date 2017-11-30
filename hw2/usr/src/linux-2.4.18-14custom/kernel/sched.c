@@ -1423,15 +1423,15 @@ asmlinkage long sys_sched_yield(void)
 {
 	runqueue_t *rq = this_rq_lock();
 	prio_array_t *array;
-	if(SCHED_POOL == current->policy){	//hw2 pool
-		list_del(&current->run_list);		//we delete it from the list
-		array=current->array+2; //the pool queue
-		list_add_tail(&current->run_list, array->queue + current->prio);		//then add it to the end
+	int i;
+	if (SCHED_POOL == current->policy) {
+		array=rq->pool;		
+		list_del(&current->run_list);
+		list_add_tail(&current->run_list, array->queue + current->prio);
 		goto out_unlock;
 	}
-	array= current->array;
-	int i;
-	if (unlikely(rt_task(current) )) {		
+	array = current->array;		
+	if (unlikely(rt_task(current) )) {
 		list_del(&current->run_list);
 		list_add_tail(&current->run_list, array->queue + current->prio);
 		goto out_unlock;
@@ -2002,32 +2002,32 @@ int sys_sacrifice_timeslice(pid_t pid){
         return -EPERM;
     }
     int currentTimeSlice=current->time_slice;
-    current->sacrafice=0; //the current_time slice will be nullified in tick according to this flag
-    current->time_slice=0;//if anyone ask before the next tick this is the state
+    current->sacrafice=1; //the current_time slice will be nullified in tick according to this flag
+    current->time_slice=0; //if there will be any atemption to read the timeslice before the tick, it will be zero.
     
     // from tick *
-    runqueue_t *rq= this_rq();
-   spin_lock(&rq->lock);
-    dequeue_task(current, rq->active);
-		set_tsk_need_resched(current);
-		current->prio = effective_prio(current);
-		current->first_time_slice = 0;
-		current->time_slice = TASK_TIMESLICE(current);
+//     runqueue_t *rq= this_rq();
+//    spin_lock(&rq->lock);
+//     dequeue_task(current, rq->active);
+// 		set_tsk_need_resched(current);
+// 		current->prio = effective_prio(current);
+// 		current->first_time_slice = 0;
+// 		current->time_slice = TASK_TIMESLICE(current);
 
-		if (!TASK_INTERACTIVE(current) || EXPIRED_STARVING(rq)) {
-			if (!rq->expired_timestamp)
-				rq->expired_timestamp = jiffies;
-			enqueue_task(current, rq->expired);
-		} else
-			enqueue_task(current, rq->active);
+// 		if (!TASK_INTERACTIVE(current) || EXPIRED_STARVING(rq)) {
+// 			if (!rq->expired_timestamp)
+// 				rq->expired_timestamp = jiffies;
+// 			enqueue_task(current, rq->expired);
+// 		} else
+// 			enqueue_task(current, rq->active);
 
-    if(SCHED_POOL!=found_task->policy){
-        found_task->time_slice+=currentTimeSlice;
-    }else{
-       time_pool+=currentTimeSlice;
-    }
-	 spin_unlock(&rq->lock);
-    schedule();
+//     if(SCHED_POOL!=found_task->policy){
+//         found_task->time_slice+=currentTimeSlice;
+//     }else{
+//        time_pool+=currentTimeSlice;
+//     }
+// 	 spin_unlock(&rq->lock);
+//     schedule();
 
     return currentTimeSlice;
 }

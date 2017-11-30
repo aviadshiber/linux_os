@@ -723,7 +723,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	 */
 	__save_flags(flags);
 	__cli();
-	if(SCHED_POOL != p->policy){			//hw2 added
+	 if(SCHED_POOL != p->policy){			//hw2 added
 		if (!current->time_slice)
 			BUG();
 		p->time_slice = (current->time_slice + 1) >> 1;
@@ -739,7 +739,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 			current->time_slice = 1;
 			scheduler_tick(0,0);
 		}
-}
+ }
 	__restore_flags(flags);
 
 	/*

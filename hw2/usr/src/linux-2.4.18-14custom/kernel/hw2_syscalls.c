@@ -30,6 +30,10 @@ int sys_get_total_time_in_runqueue(pid_t pid){
     if(!found_task){
         return -ESRCH;
     }
+    if(TASK_RUNNING == found_task->state){
+        found_task->total_time_in_runqueue+= jiffies - found_task->entered_to_rq_time;
+        found_task->entered_to_rq_time=jiffies;
+    }
     return found_task->total_time_in_runqueue;
 }
 
