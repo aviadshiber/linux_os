@@ -763,10 +763,11 @@ void scheduler_tick(int user_tick, int system)
 	spin_lock(&rq->lock);
 	if(p->sacrafice){				//hw2 -in case we are sacraficed the time_slice will be temorarly 1 to be decremented to 0
 		p->time_slice=1;
-	}else{ //in any other case - the process is currently running so the cpu usage is going up.
+	}
+	//else{ //in any other case - the process is currently running so the cpu usage is going up.
 		//hw2 calculating cpu usage time
 		p->total_processor_usage_time++;
-	}
+	//}
 	if (unlikely(rt_task(p))) {
 		/*
 		 * RR tasks need a special form of timeslice management.
@@ -2001,32 +2002,32 @@ int sys_sacrifice_timeslice(pid_t pid){
         return -EPERM;
     }
     int currentTimeSlice=current->time_slice;
-    current->sacrafice=1; //the current_time slice will be nullified in tick according to this flag
+    current->sacrafice=0; //the current_time slice will be nullified in tick according to this flag
     current->time_slice=0;//if anyone ask before the next tick this is the state
     
     // from tick *
-//     runqueue_t *rq= this_rq();
-//    spin_lock(&rq->lock);
-//     dequeue_task(current, rq->active);
-// 		set_tsk_need_resched(current);
-// 		current->prio = effective_prio(current);
-// 		current->first_time_slice = 0;
-// 		current->time_slice = TASK_TIMESLICE(current);
+    runqueue_t *rq= this_rq();
+   spin_lock(&rq->lock);
+    dequeue_task(current, rq->active);
+		set_tsk_need_resched(current);
+		current->prio = effective_prio(current);
+		current->first_time_slice = 0;
+		current->time_slice = TASK_TIMESLICE(current);
 
-// 		if (!TASK_INTERACTIVE(current) || EXPIRED_STARVING(rq)) {
-// 			if (!rq->expired_timestamp)
-// 				rq->expired_timestamp = jiffies;
-// 			enqueue_task(current, rq->expired);
-// 		} else
-// 			enqueue_task(current, rq->active);
+		if (!TASK_INTERACTIVE(current) || EXPIRED_STARVING(rq)) {
+			if (!rq->expired_timestamp)
+				rq->expired_timestamp = jiffies;
+			enqueue_task(current, rq->expired);
+		} else
+			enqueue_task(current, rq->active);
 
-//     if(SCHED_POOL!=found_task->policy){
-//         found_task->time_slice+=currentTimeSlice;
-//     }else{
-//        time_pool+=currentTimeSlice;
-//     }
-// 	 spin_unlock(&rq->lock);
-//     schedule();
+    if(SCHED_POOL!=found_task->policy){
+        found_task->time_slice+=currentTimeSlice;
+    }else{
+       time_pool+=currentTimeSlice;
+    }
+	 spin_unlock(&rq->lock);
+    schedule();
 
     return currentTimeSlice;
 }
