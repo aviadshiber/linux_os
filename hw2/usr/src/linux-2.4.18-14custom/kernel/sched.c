@@ -791,21 +791,26 @@ void scheduler_tick(int user_tick, int system)
 	 * it possible for interactive tasks to use up their
 	 * timeslices at their highest priority levels.
 	 */
-	if (p->sleep_avg)
-		p->sleep_avg--;
-	if (!--p->time_slice) {
-		dequeue_task(p, rq->active);
-		set_tsk_need_resched(p);
-		p->prio = effective_prio(p);
-		p->first_time_slice = 0;
-		p->time_slice = TASK_TIMESLICE(p);
 
-		if (!TASK_INTERACTIVE(p) || EXPIRED_STARVING(rq)) {
-			if (!rq->expired_timestamp)
-				rq->expired_timestamp = jiffies;
-			enqueue_task(p, rq->expired);
-		} else
-			enqueue_task(p, rq->active);
+	if(SCHED_POOL == p->policy && !--time_pool){//hw2
+		set_tsk_need_resched(p);
+	}else{//hw2
+		if (p->sleep_avg)
+			p->sleep_avg--;
+		if (!--p->time_slice) {
+			dequeue_task(p, rq->active);
+			set_tsk_need_resched(p);
+			p->prio = effective_prio(p);
+			p->first_time_slice = 0;
+			p->time_slice = TASK_TIMESLICE(p);
+
+			if (!TASK_INTERACTIVE(p) || EXPIRED_STARVING(rq)) {
+				if (!rq->expired_timestamp)
+					rq->expired_timestamp = jiffies;
+				enqueue_task(p, rq->expired);
+			} else
+				enqueue_task(p, rq->active);
+		}
 	}
 out:
 #if CONFIG_SMP
@@ -855,7 +860,7 @@ need_resched:
 #if CONFIG_SMP
 pick_next_task:
 #endif
-//	if (unlikely(!rq->nr_running) || ( (rq->pool->nr_active == rq->nr_running)&&(our_time_pool==0) )) {
+	// no running in runqueue or all running task are in pool with no time_pool left-> idle task is the next
 	if (unlikely(!rq->nr_running) ||  ( (rq->pool->nr_active == rq->nr_running)&&(time_pool==0) )) {
 #if CONFIG_SMP
 		load_balance(rq, 1);
@@ -866,16 +871,21 @@ pick_next_task:
 		rq->expired_timestamp = 0;
 		goto switch_tasks;
 	}
-
-	array = rq->active;
-	if (unlikely(!array->nr_active)) {
-		/*
-		 * Switch the active and expired arrays.
-		 */
-		rq->active = rq->expired;
-		rq->expired = array;
-		array = rq->active;
-		rq->expired_timestamp = 0;
+	//hw2 - if all running task are in pool and we still have time_pool left
+	if(  (rq->pool->nr_active == rq->nr_running)&&(time_pool>0) ) {//hw2
+		//todo
+		array=rq->pool;
+	}else{
+		array = rq->active;	
+		if (unlikely(!array->nr_active)) {
+			/*
+			* Switch the active and expired arrays.
+			*/
+			rq->active = rq->expired;
+			rq->expired = array;
+			array = rq->active;
+			rq->expired_timestamp = 0;
+		}
 	}
 
 	idx = sched_find_first_bit(array->bitmap);
