@@ -290,11 +290,11 @@ static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 	rq->nr_running--;
 	 //hw2
 	 //if(TASK_RUNNING == p->state){
-	  	p->total_time_in_runqueue += jiffies - p->entered_to_rq_time;
+	p->total_time_in_runqueue += jiffies - p->entered_to_rq_time;
 	 //}
 	//hw2 end
-	printk("activate state : %ld\n", p->state);
-	printk("total rq time  : %lu || enter rq time: %lu \n", 	p->total_time_in_runqueue,p->entered_to_rq_time );
+	// printk("activate state : %ld\n", p->state);
+	// printk("total rq time  : %lu || enter rq time: %lu \n", 	p->total_time_in_runqueue,p->entered_to_rq_time );
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
 	dequeue_task(p, p->array+idx);
@@ -761,12 +761,12 @@ void scheduler_tick(int user_tick, int system)
 		return;
 	}
 	spin_lock(&rq->lock);
-	if(p->sacrafice){				//hw2 sacrafice
+	if(p->sacrafice){				//hw2 -in case we are sacraficed the time_slice will be temorarly 1 to be decremented to 0
 		p->time_slice=1;
+	}else{ //in any other case - the process is currently running so the cpu usage is going up.
+		//hw2 calculating cpu usage time
+		p->total_processor_usage_time++;
 	}
-	//if(p->time_slice > 0){							//hw2 cpu usage time
-	p->total_processor_usage_time++;	
-	//}
 	if (unlikely(rt_task(p))) {
 		/*
 		 * RR tasks need a special form of timeslice management.
@@ -783,6 +783,15 @@ void scheduler_tick(int user_tick, int system)
 		}
 		goto out;
 	}
+	/**
+	 * ---------------------------------------HW2------------------------------------------------------
+	 * in case of sched_pool we need to reschedule when time_pool is zero.
+	 * also the time should be counted down only if there are task in the pool (o.w it will reserve the time_pool state)
+	 * ---------------------------------------HW2------------------------------------------------------
+	*/
+	if(SCHED_POOL == p->policy && rq->pool->nr_active>0 && !--time_pool){
+		set_tsk_need_resched(p);
+	}else{//hw2- we added the if-else
 	/*
 	 * The task was running during this tick - update the
 	 * time slice counter and the sleep average. Note: we
@@ -791,10 +800,6 @@ void scheduler_tick(int user_tick, int system)
 	 * it possible for interactive tasks to use up their
 	 * timeslices at their highest priority levels.
 	 */
-
-	if(SCHED_POOL == p->policy && !--time_pool){//hw2
-		set_tsk_need_resched(p);
-	}else{//hw2
 		if (p->sleep_avg)
 			p->sleep_avg--;
 		if (!--p->time_slice) {
@@ -1418,8 +1423,8 @@ asmlinkage long sys_sched_yield(void)
 	runqueue_t *rq = this_rq_lock();
 	prio_array_t *array;
 	if(SCHED_POOL == current->policy){	//hw2 pool
-		list_del(&current->run_list);		//we delete it from the array
-		array=rq->pool;
+		list_del(&current->run_list);		//we delete it from the list
+		array=current->array+2; //the pool queue
 		list_add_tail(&current->run_list, array->queue + current->prio);		//then add it to the end
 		goto out_unlock;
 	}
