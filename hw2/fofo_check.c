@@ -120,12 +120,41 @@ void test_runqueue_time(){
     printf("\ndelta time:%d\n",end-start);
 
 }
+
+void test_pool_adv(){
+    struct sched_param param1;
+    param1.sched_priority =0;
+    struct sched_param param2;
+    param2.sched_priority =1;
+    int pid1,pid2;
+    pid_t f=fork();
+    if(f==0){       //son's code
+        pid1=getpid();
+        assert(sched_setscheduler(pid1,3,&param1)==0);    //success
+        assert(search_pool_level(pid1,0)==0);            //success
+        pid_t f1=fork();
+        if(f1==0){
+            pid2=getpid();
+            assert(search_pool_level(pid1,0)==0); 
+            assert(search_pool_level(pid2,0)==1);            //forked task should be located at the end
+            assert(sched_setscheduler(pid1,3,&param2)==0);
+            assert(search_pool_level(pid1,0)==-1);
+            assert(search_pool_level(pid2,0)==0);       //pid1 moved to level 3s
+            //yield();
+
+        }
+    }else{  //father's code
+        //
+    }
+
+}
 int main(){
     
 
     //test_total_cpu_usage();
-    test_runqueue_time();
-    test_pool();
+    //test_runqueue_time();
+    //test_pool();
+    test_pool_adv();
     // time_t start=time(NULL);
    
     // pid_t f=fork();
