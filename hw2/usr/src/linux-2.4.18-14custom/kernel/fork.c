@@ -723,21 +723,23 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	 */
 	__save_flags(flags);
 	__cli();
-	if (!current->time_slice)
-		BUG();
-	p->time_slice = (current->time_slice + 1) >> 1;
-	p->first_time_slice = 1;
-	current->time_slice >>= 1;
-	p->sleep_timestamp = jiffies;
-	if (!current->time_slice) {
-		/*
-		 * This case is rare, it happens when the parent has only
-		 * a single jiffy left from its timeslice. Taking the
-		 * runqueue lock is not a problem.
-		 */
-		current->time_slice = 1;
-		scheduler_tick(0,0);
-	}
+	if(SCHED_POOL != p->policy){			//hw2 added
+		if (!current->time_slice)
+			BUG();
+		p->time_slice = (current->time_slice + 1) >> 1;
+		p->first_time_slice = 1;
+		current->time_slice >>= 1;
+		p->sleep_timestamp = jiffies;
+		if (!current->time_slice) {
+			/*
+			* This case is rare, it happens when the parent has only
+			* a single jiffy left from its timeslice. Taking the
+			* runqueue lock is not a problem.
+			*/
+			current->time_slice = 1;
+			scheduler_tick(0,0);
+		}
+}
 	__restore_flags(flags);
 
 	/*
@@ -774,7 +776,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 
 	if (p->ptrace & PT_PTRACED)
 		send_sig(SIGSTOP, p, 1);
-	wake_up_forked_process(p);	/* do this last */
+	wake_up_forked_process(p);	/* do this last */				//HW2* this function puts the son in the end of the current pool array
 	++total_forks;
 	if (clone_flags & CLONE_VFORK)
 		wait_for_completion(&vfork);

@@ -258,7 +258,7 @@ static inline int effective_prio(task_t *p)
 
 static inline void activate_task(task_t *p, runqueue_t *rq)
 {
-	printk("activate state : %ld\n", p->state);
+	// printk("activate state : %ld\n", p->state);
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
 	p->entered_to_rq_time=jiffies; //hw2
 	prio_array_t *array;
@@ -414,7 +414,7 @@ void wake_up_forked_process(task_t * p)
 	runqueue_t *rq = this_rq_lock();
 
 	p->state = TASK_RUNNING;
-	if (!rt_task(p)) {
+	if (!rt_task(p) &&  SCHED_POOL != p->policy) {		//hw2 added pool check
 		/*
 		 * We decrease the sleep average of forking parents
 		 * and children as well, to keep max-interactive tasks
@@ -1416,10 +1416,16 @@ out_unlock:
 asmlinkage long sys_sched_yield(void)
 {
 	runqueue_t *rq = this_rq_lock();
-	prio_array_t *array = current->array;
+	prio_array_t *array;
+	if(SCHED_POOL == current->policy){	//hw2 pool
+		list_del(&current->run_list);		//we delete it from the array
+		array=rq->pool;
+		list_add_tail(&current->run_list, array->queue + current->prio);		//then add it to the end
+		goto out_unlock;
+	}
+	array= current->array;
 	int i;
-
-	if (unlikely(rt_task(current))) {
+	if (unlikely(rt_task(current) )) {		
 		list_del(&current->run_list);
 		list_add_tail(&current->run_list, array->queue + current->prio);
 		goto out_unlock;
