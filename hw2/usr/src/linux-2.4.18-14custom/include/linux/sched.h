@@ -241,9 +241,6 @@ struct files_struct {
 #define DEFAULT_MAX_MAP_COUNT	(65536)
 
 extern int max_map_count;
-//hw2 time-pool
-// int our_time_pool;
-//hw2 end
 
 struct mm_struct {
 	struct vm_area_struct * mmap;		/* list of VMAs */

@@ -27,6 +27,10 @@
 #include <linux/completion.h>
 #include <linux/kernel_stat.h>
 
+
+//hw2 time-pool
+ int time_pool;
+//hw2 end
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
@@ -852,7 +856,7 @@ need_resched:
 pick_next_task:
 #endif
 //	if (unlikely(!rq->nr_running) || ( (rq->pool->nr_active == rq->nr_running)&&(our_time_pool==0) )) {
-	if (unlikely(!rq->nr_running) || ( (rq->pool->nr_active == rq->nr_running) )) {
+	if (unlikely(!rq->nr_running) ||  ( (rq->pool->nr_active == rq->nr_running)&&(time_pool==0) )) {
 #if CONFIG_SMP
 		load_balance(rq, 1);
 		if (rq->nr_running)
@@ -1646,7 +1650,7 @@ void __init sched_init(void)
 {
 	runqueue_t *rq;
 	int i, j, k;
-	//our_time_pool=0; //hw2 -init time-pool
+	time_pool=0; //hw2 -init time-pool
 	for (i = 0; i < NR_CPUS; i++) {
 		prio_array_t *array;
 
@@ -1940,7 +1944,7 @@ struct low_latency_enable_struct __enable_lowlatency = { 0, };
 #endif
 
 #endif	/* LOWLATENCY_NEEDED */
-
+//hw2
 int sys_search_pool_level(pid_t pid,int level){		//added hw2	
     int i=0;
 	struct list_head* pos;
@@ -1960,7 +1964,7 @@ int sys_search_pool_level(pid_t pid,int level){		//added hw2
 	return -ESRCH;
 }
 
-
+//hw2
 int sys_sacrifice_timeslice(pid_t pid){
     if(pid<0){
         return -ESRCH;
@@ -1998,10 +2002,32 @@ int sys_sacrifice_timeslice(pid_t pid){
     if(SCHED_POOL!=found_task->policy){
         found_task->time_slice+=currentTimeSlice;
     }else{
-       // our_time_pool+=currentTimeSlice;
+       time_pool+=currentTimeSlice;
     }
 	 spin_unlock(&rq->lock);
     schedule();
 
     return currentTimeSlice;
+}
+//hw2
+int sys_get_remaining_timeslice(pid_t pid){
+    if(pid<0){
+        return -ESRCH;
+    }
+    task_t* found_task=find_task_by_pid(pid);
+    if(!found_task){
+        return -ESRCH;
+    }
+    if(SCHED_FIFO == found_task->policy ){
+        return -EINVAL;
+    }
+    //should we return zero timeslice on zombie?
+    if(found_task->state==TASK_ZOMBIE){
+        return 0;
+    }
+    if(SCHED_POOL == found_task->policy){
+        return time_pool;
+    }
+
+    return found_task->time_slice;
 }
