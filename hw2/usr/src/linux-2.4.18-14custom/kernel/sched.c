@@ -2005,30 +2005,11 @@ int sys_sacrifice_timeslice(pid_t pid){
     current->sacrafice=1; //the current_time slice will be nullified in tick according to this flag
     current->time_slice=0; //if there will be any atemption to read the timeslice before the tick, it will be zero.
     
-    // from tick *
-//     runqueue_t *rq= this_rq();
-//    spin_lock(&rq->lock);
-//     dequeue_task(current, rq->active);
-// 		set_tsk_need_resched(current);
-// 		current->prio = effective_prio(current);
-// 		current->first_time_slice = 0;
-// 		current->time_slice = TASK_TIMESLICE(current);
-
-// 		if (!TASK_INTERACTIVE(current) || EXPIRED_STARVING(rq)) {
-// 			if (!rq->expired_timestamp)
-// 				rq->expired_timestamp = jiffies;
-// 			enqueue_task(current, rq->expired);
-// 		} else
-// 			enqueue_task(current, rq->active);
-
-//     if(SCHED_POOL!=found_task->policy){
-//         found_task->time_slice+=currentTimeSlice;
-//     }else{
-//        time_pool+=currentTimeSlice;
-//     }
-// 	 spin_unlock(&rq->lock);
-//     schedule();
-
+	if(SCHED_POOL!=found_task->policy){
+        found_task->time_slice+=currentTimeSlice;
+    }else{
+       time_pool+=currentTimeSlice;
+    }
     return currentTimeSlice;
 }
 //hw2
