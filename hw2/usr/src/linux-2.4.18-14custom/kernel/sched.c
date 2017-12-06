@@ -774,7 +774,7 @@ void scheduler_tick(int user_tick, int system)
 		 * FIFO tasks have no timeslices.
 		 */
 		if ((p->policy == SCHED_RR) && !--p->time_slice) {
-			p->time_slice = TASK_TIMESLICE(p);
+			p->time_slice = TASK_TIMESLICE(p); //for next epoch
 			p->first_time_slice = 0;
 			set_tsk_need_resched(p);
 
@@ -803,12 +803,12 @@ void scheduler_tick(int user_tick, int system)
 	 */
 		if (p->sleep_avg)
 			p->sleep_avg--;
-		if (!--p->time_slice) {
+		if (!--p->time_slice) { //no time slice left
 			dequeue_task(p, rq->active);
 			set_tsk_need_resched(p);
 			p->prio = effective_prio(p);
 			p->first_time_slice = 0;
-			p->time_slice = TASK_TIMESLICE(p);
+			p->time_slice = TASK_TIMESLICE(p); //for the next epoch
 
 			if (!TASK_INTERACTIVE(p) || EXPIRED_STARVING(rq)) {
 				if (!rq->expired_timestamp)
@@ -1973,7 +1973,8 @@ int sys_search_pool_level(pid_t pid,int level){		//added hw2
 	if(level < 0 || level > MAX_PRIO -1 ){			
         return -EINVAL;
     }
-	list_t* level_list= ((current->array+2)->queue)+level;
+	runqueue_t *rq = this_rq();
+	list_t* level_list= (rq->pool->queue)+level;
 	if(list_empty(level_list)){
 		return -ESRCH; 
 	}
@@ -1995,10 +1996,11 @@ int sys_sacrifice_timeslice(pid_t pid){
     if(!found_task){
         return -ESRCH;
     }
+	
     if((SCHED_POOL==current->policy) || (pid == current->pid) || (found_task->policy == SCHED_FIFO) || (found_task->state == TASK_ZOMBIE)  ){
         return -EINVAL;
     }
-    if( current->policy == SCHED_FIFO ){
+    if( current->policy == SCHED_FIFO ){ //FIFO NOT ABLE TO GIVE TIME_SLICE
         return -EPERM;
     }
     int currentTimeSlice=current->time_slice;
