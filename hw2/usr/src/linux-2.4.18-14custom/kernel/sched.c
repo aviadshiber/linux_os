@@ -893,7 +893,7 @@ pick_next_task:
 			rq->expired_timestamp = 0;
 		}
 	}
-
+	//taking the next best proi
 	idx = sched_find_first_bit(array->bitmap);
 	queue = array->queue + idx;
 	next = list_entry(queue->next, task_t, run_list);
