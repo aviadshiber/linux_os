@@ -723,6 +723,9 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	 */
 	__save_flags(flags);
 	__cli();
+	if(current->was_sacraficed){//HW2
+		current->time_slice=1;
+	}
 	if (!current->time_slice)
 		BUG();
 	p->time_slice = (current->time_slice + 1) >> 1;
