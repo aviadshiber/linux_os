@@ -43,10 +43,9 @@ int sys_disable_syscalls_logging(pid_t pid){
     if(!found_task->logger_enabled){
         return -EINVAL;
     }
-
+    found_task->logger_enabled=0;
     kfree(found_task->logger_queue);
     found_task->logger_queue=NULL; //overkill- should never access logger queue when it is not enabled
-    found_task->logger_enabled=0;
     found_task->logger_max_size=0;
     found_task->logger_next_log_index=0;
 
