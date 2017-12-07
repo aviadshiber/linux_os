@@ -27,10 +27,6 @@
 #include <linux/completion.h>
 #include <linux/kernel_stat.h>
 
-
-//hw2 time-pool
- int time_pool;
-//hw2 end
 /*
  * Convert user-nice values [ -20 ... 0 ... 19 ]
  * to static priority [ MAX_RT_PRIO..MAX_PRIO-1 ],
@@ -142,7 +138,7 @@ struct runqueue {
 	unsigned long nr_running, nr_switches, expired_timestamp;
 	signed long nr_uninterruptible;
 	task_t *curr, *idle;
-	prio_array_t *active, *expired,*pool, arrays[3]; 			//hw2: added pool array 
+	prio_array_t *active, *expired, arrays[2];
 	int prev_nr_running[NR_CPUS];
 	task_t *migration_thread;
 	list_t migration_queue;
@@ -258,16 +254,10 @@ static inline int effective_prio(task_t *p)
 
 static inline void activate_task(task_t *p, runqueue_t *rq)
 {
-	// printk("activate state : %ld\n", p->state);
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
-	p->entered_to_rq_time=jiffies; //hw2
-	prio_array_t *array;
-	if(p->policy == SCHED_POOL){					//hw2 added
-		array=rq->pool;
-	}else{
-		array = rq->active;
-	}
-	if (!rt_task(p) && sleep_time && p->policy != SCHED_POOL) {			//hw2 added
+	prio_array_t *array = rq->active;
+
+	if (!rt_task(p) && sleep_time) {
 		/*
 		 * This code gives a bonus to interactive tasks. We update
 		 * an 'average sleep time' value here, based on
@@ -286,18 +276,10 @@ static inline void activate_task(task_t *p, runqueue_t *rq)
 
 static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
-	int idx= (SCHED_POOL == p->policy ? 2 : 0);		//hw2- was always 0 before
 	rq->nr_running--;
-	 //hw2
-	 //if(TASK_RUNNING == p->state){
-	p->total_time_in_runqueue += jiffies - p->entered_to_rq_time;
-	 //}
-	//hw2 end
-	// printk("activate state : %ld\n", p->state);
-	// printk("total rq time  : %lu || enter rq time: %lu \n", 	p->total_time_in_runqueue,p->entered_to_rq_time );
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
-	dequeue_task(p, p->array+idx);
+	dequeue_task(p, p->array);
 	p->array = NULL;
 }
 
@@ -414,7 +396,7 @@ void wake_up_forked_process(task_t * p)
 	runqueue_t *rq = this_rq_lock();
 
 	p->state = TASK_RUNNING;
-	if (!rt_task(p) &&  SCHED_POOL != p->policy) {		//hw2 added pool check
+	if (!rt_task(p)) {
 		/*
 		 * We decrease the sleep average of forking parents
 		 * and children as well, to keep max-interactive tasks
@@ -741,6 +723,7 @@ void scheduler_tick(int user_tick, int system)
 	int cpu = smp_processor_id();
 	runqueue_t *rq = this_rq();
 	task_t *p = current;
+
 	if (p == rq->idle) {
 		if (local_bh_count(cpu) || local_irq_count(cpu) > 1)
 			kstat.per_cpu_system[cpu] += system;
@@ -761,21 +744,13 @@ void scheduler_tick(int user_tick, int system)
 		return;
 	}
 	spin_lock(&rq->lock);
-	if(p->sacrafice){				//hw2 -in case we are sacraficed the time_slice will be temorarly 1 to be decremented to 0
-		p->time_slice=1;
-		p->sacrafice=0;
-	}
-	//else{ //in any other case - the process is currently running so the cpu usage is going up.
-		//hw2 calculating cpu usage time
-		p->total_processor_usage_time++;
-	//}
 	if (unlikely(rt_task(p))) {
 		/*
 		 * RR tasks need a special form of timeslice management.
 		 * FIFO tasks have no timeslices.
 		 */
 		if ((p->policy == SCHED_RR) && !--p->time_slice) {
-			p->time_slice = TASK_TIMESLICE(p); //for next epoch
+			p->time_slice = TASK_TIMESLICE(p);
 			p->first_time_slice = 0;
 			set_tsk_need_resched(p);
 
@@ -785,15 +760,6 @@ void scheduler_tick(int user_tick, int system)
 		}
 		goto out;
 	}
-	/**
-	 * ---------------------------------------HW2------------------------------------------------------
-	 * in case of sched_pool we need to reschedule when time_pool is zero.
-	 * also the time should be counted down only if there are task in the pool (o.w it will reserve the time_pool state)
-	 * ---------------------------------------HW2------------------------------------------------------
-	*/
-	if(SCHED_POOL == p->policy && rq->pool->nr_active>0 && !--time_pool){
-		set_tsk_need_resched(p);
-	}else{//hw2- we added the if-else
 	/*
 	 * The task was running during this tick - update the
 	 * time slice counter and the sleep average. Note: we
@@ -802,22 +768,21 @@ void scheduler_tick(int user_tick, int system)
 	 * it possible for interactive tasks to use up their
 	 * timeslices at their highest priority levels.
 	 */
-		if (p->sleep_avg)
-			p->sleep_avg--;
-		if (!--p->time_slice) { //no time slice left
-			dequeue_task(p, rq->active);
-			set_tsk_need_resched(p);
-			p->prio = effective_prio(p);
-			p->first_time_slice = 0;
-			p->time_slice = TASK_TIMESLICE(p); //for the next epoch
+	if (p->sleep_avg)
+		p->sleep_avg--;
+	if (!--p->time_slice) {
+		dequeue_task(p, rq->active);
+		set_tsk_need_resched(p);
+		p->prio = effective_prio(p);
+		p->first_time_slice = 0;
+		p->time_slice = TASK_TIMESLICE(p);
 
-			if (!TASK_INTERACTIVE(p) || EXPIRED_STARVING(rq)) {
-				if (!rq->expired_timestamp)
-					rq->expired_timestamp = jiffies;
-				enqueue_task(p, rq->expired);
-			} else
-				enqueue_task(p, rq->active);
-		}
+		if (!TASK_INTERACTIVE(p) || EXPIRED_STARVING(rq)) {
+			if (!rq->expired_timestamp)
+				rq->expired_timestamp = jiffies;
+			enqueue_task(p, rq->expired);
+		} else
+			enqueue_task(p, rq->active);
 	}
 out:
 #if CONFIG_SMP
@@ -850,7 +815,6 @@ need_resched:
 	release_kernel_lock(prev, smp_processor_id());
 	prepare_arch_schedule(prev);
 	prev->sleep_timestamp = jiffies;
-	
 	spin_lock_irq(&rq->lock);
 
 	switch (prev->state) {
@@ -867,8 +831,7 @@ need_resched:
 #if CONFIG_SMP
 pick_next_task:
 #endif
-	// no running in runqueue or all running task are in pool with no time_pool left-> idle task is the next
-	if (unlikely(!rq->nr_running) ||  ( (rq->pool->nr_active == rq->nr_running)&&(time_pool==0) )) {
+	if (unlikely(!rq->nr_running)) {
 #if CONFIG_SMP
 		load_balance(rq, 1);
 		if (rq->nr_running)
@@ -878,23 +841,18 @@ pick_next_task:
 		rq->expired_timestamp = 0;
 		goto switch_tasks;
 	}
-	//hw2 - if all running task are in pool and we still have time_pool left
-	if(  (rq->pool->nr_active == rq->nr_running)&&(time_pool>0) ) {//hw2
-		//todo
-		array=rq->pool;
-	}else{
-		array = rq->active;	
-		if (unlikely(!array->nr_active)) {
-			/*
-			* Switch the active and expired arrays.
-			*/
-			rq->active = rq->expired;
-			rq->expired = array;
-			array = rq->active;
-			rq->expired_timestamp = 0;
-		}
+
+	array = rq->active;
+	if (unlikely(!array->nr_active)) {
+		/*
+		 * Switch the active and expired arrays.
+		 */
+		rq->active = rq->expired;
+		rq->expired = array;
+		array = rq->active;
+		rq->expired_timestamp = 0;
 	}
-	//taking the next best proi
+
 	idx = sched_find_first_bit(array->bitmap);
 	queue = array->queue + idx;
 	next = list_entry(queue->next, task_t, run_list);
@@ -915,7 +873,7 @@ switch_tasks:
 	} else
 		spin_unlock_irq(&rq->lock);
 	finish_arch_schedule(prev);
-	
+
 	reacquire_kernel_lock(current);
 	if (need_resched())
 		goto need_resched;
@@ -1193,7 +1151,7 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	read_lock_irq(&tasklist_lock);
 
 	p = find_process_by_pid(pid);
-	
+
 	retval = -ESRCH;
 	if (!p)
 		goto out_unlock_tasklist;
@@ -1209,7 +1167,7 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	else {
 		retval = -EINVAL;
 		if (policy != SCHED_FIFO && policy != SCHED_RR &&
-				policy != SCHED_OTHER && policy != SCHED_POOL)			//hw2 added check
+				policy != SCHED_OTHER)
 			goto out_unlock;
 	}
 
@@ -1218,16 +1176,10 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	 * 1..MAX_USER_RT_PRIO-1, valid priority for SCHED_OTHER is 0.
 	 */
 	retval = -EINVAL;
-	if(policy == SCHED_POOL){
-		if( lp.sched_priority<0 || lp.sched_priority >= MAX_PRIO ){		//hw2 pool prio check
-			goto out_unlock;
-		}
-	}else{
-		if (lp.sched_priority < 0 || lp.sched_priority > MAX_USER_RT_PRIO-1)
-			goto out_unlock;
-		if ((policy == SCHED_OTHER) != (lp.sched_priority == 0))
-			goto out_unlock;
-	}
+	if (lp.sched_priority < 0 || lp.sched_priority > MAX_USER_RT_PRIO-1)
+		goto out_unlock;
+	if ((policy == SCHED_OTHER) != (lp.sched_priority == 0))
+		goto out_unlock;
 
 	retval = -EPERM;
 	if ((policy == SCHED_FIFO || policy == SCHED_RR) &&
@@ -1236,20 +1188,17 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	if ((current->euid != p->euid) && (current->euid != p->uid) &&
 	    !capable(CAP_SYS_NICE))
 		goto out_unlock;
+
 	array = p->array;
 	if (array)
 		deactivate_task(p, task_rq(p));
 	retval = 0;
 	p->policy = policy;
 	p->rt_priority = lp.sched_priority;
-	if(policy == SCHED_POOL){
-		p->prio=lp.sched_priority;							//hw2 pool prio isnt changing
-	}else{
-		if (policy != SCHED_OTHER)
-			p->prio = MAX_USER_RT_PRIO-1 - p->rt_priority;
-		else
-			p->prio = p->static_prio;
-	}
+	if (policy != SCHED_OTHER)
+		p->prio = MAX_USER_RT_PRIO-1 - p->rt_priority;
+	else
+		p->prio = p->static_prio;
 	if (array)
 		activate_task(p, task_rq(p));
 
@@ -1423,16 +1372,10 @@ out_unlock:
 asmlinkage long sys_sched_yield(void)
 {
 	runqueue_t *rq = this_rq_lock();
-	prio_array_t *array;
+	prio_array_t *array = current->array;
 	int i;
-	if (SCHED_POOL == current->policy) {
-		array=rq->pool;		
-		list_del(&current->run_list);
-		list_add_tail(&current->run_list, array->queue + current->prio);
-		goto out_unlock;
-	}
-	array = current->array;		
-	if (unlikely(rt_task(current) )) {
+
+	if (unlikely(rt_task(current))) {
 		list_del(&current->run_list);
 		list_add_tail(&current->run_list, array->queue + current->prio);
 		goto out_unlock;
@@ -1648,7 +1591,7 @@ void __init init_idle(task_t *idle, int cpu)
 {
 	runqueue_t *idle_rq = cpu_rq(cpu), *rq = cpu_rq(idle->cpu);
 	unsigned long flags;
-	
+
 	__save_flags(flags);
 	__cli();
 	double_rq_lock(idle_rq, rq);
@@ -1673,18 +1616,17 @@ void __init sched_init(void)
 {
 	runqueue_t *rq;
 	int i, j, k;
-	time_pool=0; //hw2 -init time-pool
+
 	for (i = 0; i < NR_CPUS; i++) {
 		prio_array_t *array;
 
 		rq = cpu_rq(i);
 		rq->active = rq->arrays;
 		rq->expired = rq->arrays + 1;
-		rq->pool = rq->arrays +2;				//hw2 added pool to array
 		spin_lock_init(&rq->lock);
 		INIT_LIST_HEAD(&rq->migration_queue);
 
-		for (j = 0; j < 3; j++) {				//hw2 - changed to 3
+		for (j = 0; j < 2; j++) {
 			array = rq->arrays + j;
 			for (k = 0; k < MAX_PRIO; k++) {
 				INIT_LIST_HEAD(array->queue + k);
@@ -1967,73 +1909,4 @@ struct low_latency_enable_struct __enable_lowlatency = { 0, };
 #endif
 
 #endif	/* LOWLATENCY_NEEDED */
-//hw2
-int sys_search_pool_level(pid_t pid,int level){		//added hw2	
-    int i=0;
-	struct list_head* pos;
-	if(level < 0 || level > MAX_PRIO -1 ){			
-        return -EINVAL;
-    }
-	runqueue_t *rq = this_rq();
-	list_t* level_list= (rq->pool->queue)+level;
-	if(list_empty(level_list)){
-		return -ESRCH; 
-	}
-	list_for_each(pos,level_list){
-		if(list_entry(pos,task_t,run_list)->pid == pid){
-			return i;
-		}
-		i++;
-	}
-	return -ESRCH;
-}
 
-//hw2
-int sys_sacrifice_timeslice(pid_t pid){
-    if(pid<0){
-        return -ESRCH;
-    }
-    task_t* found_task=find_task_by_pid(pid);
-    if(!found_task){
-        return -ESRCH;
-    }
-	
-    if((SCHED_POOL==current->policy) || (pid == current->pid) || (found_task->policy == SCHED_FIFO) || (found_task->state == TASK_ZOMBIE)  ){
-        return -EINVAL;
-    }
-    if( current->policy == SCHED_FIFO ){ //FIFO NOT ABLE TO GIVE TIME_SLICE
-        return -EPERM;
-    }
-    int currentTimeSlice=current->time_slice;
-    current->sacrafice=1; //the current_time slice will be nullified in tick according to this flag
-    current->time_slice=0; //if there will be any atemption to read the timeslice before the tick, it will be zero.
-    
-	if(SCHED_POOL!=found_task->policy){
-        found_task->time_slice+=currentTimeSlice;
-    }else{
-       time_pool+=currentTimeSlice;
-    }
-    return currentTimeSlice;
-}
-//hw2
-int sys_get_remaining_timeslice(pid_t pid){
-    if(pid<0){
-        return -ESRCH;
-    }
-    task_t* found_task=find_task_by_pid(pid);
-    if(!found_task){
-        return -ESRCH;
-    }
-    if(SCHED_FIFO == found_task->policy ){
-        return -EINVAL;
-    }
-    //should we return zero timeslice on zombie?
-    if(found_task->state==TASK_ZOMBIE){
-        return 0;
-    }
-    if(SCHED_POOL == found_task->policy){
-        return time_pool;
-    }
-
-    return found_task->time_slice;
-}
