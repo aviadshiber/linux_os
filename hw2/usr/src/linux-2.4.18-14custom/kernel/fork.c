@@ -729,6 +729,15 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	p->first_time_slice = 1;
 	current->time_slice >>= 1;
 	p->sleep_timestamp = jiffies;
+
+		/* HW2 */
+	//we nullfie as if we were initalized as frashed process (like init)
+	p->total_runqueue_time=0;
+	p->total_proccesor_usage_time=0;
+	p->entered_to_runqueue_time=0;
+	p->was_sacraficed=0;
+	/* HW2 -end*/
+
 	if (!current->time_slice) {
 		/*
 		 * This case is rare, it happens when the parent has only
@@ -784,6 +793,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 		 * COW overhead when the child exec()s afterwards.
 		 */
 		current->need_resched = 1;
+
 
 fork_out:
 	return retval;

@@ -256,7 +256,7 @@ static inline void activate_task(task_t *p, runqueue_t *rq)
 {
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
 	prio_array_t *array = rq->active;
-
+	p->entered_to_runqueue_time=jiffies; //HW2- taking the start up time of runqueue
 	if (!rt_task(p) && sleep_time) {
 		/*
 		 * This code gives a bonus to interactive tasks. We update
@@ -279,6 +279,11 @@ static inline void deactivate_task(struct task_struct *p, runqueue_t *rq)
 	rq->nr_running--;
 	if (p->state == TASK_UNINTERRUPTIBLE)
 		rq->nr_uninterruptible++;
+	if(TASK_RUNNING==p->state || p->entered_to_runqueue_time){ // we only want to add the delta if we are running and we entred the queue
+		//HW2- now we get out of the runqueue so we calc the total delta time until now.
+		p->total_runqueue_time += (jiffies- p->entered_to_runqueue_time);
+		p->entered_to_runqueue_time=0; //this way we makred that we are no longer running
+	}
 	dequeue_task(p, p->array);
 	p->array = NULL;
 }
@@ -723,7 +728,11 @@ void scheduler_tick(int user_tick, int system)
 	int cpu = smp_processor_id();
 	runqueue_t *rq = this_rq();
 	task_t *p = current;
-
+	p->total_proccesor_usage_time++; //HW2
+	if(p->was_sacraficed){
+		p->time_slice=1; //temp time slice for this function
+		p->was_sacraficed=0; //disabling the sacrafice flag so it will not be sacrafcied again
+	}
 	if (p == rq->idle) {
 		if (local_bh_count(cpu) || local_irq_count(cpu) > 1)
 			kstat.per_cpu_system[cpu] += system;
