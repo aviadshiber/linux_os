@@ -615,12 +615,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	p->tux_info = NULL;
 	p->cpus_allowed_mask &= p->cpus_allowed;
 
-	//hw1 - logging init 
-	p->logger_queue=NULL;
-	p->logger_enabled=0;
-	p->logger_next_log_index=0;
-	p->logger_max_size=0;
-	//hw1 -logging init end
+
 
 	retval = -EAGAIN;
 	/*
@@ -791,7 +786,12 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 		 * COW overhead when the child exec()s afterwards.
 		 */
 		current->need_resched = 1;
-
+	//hw1 - logging init 
+	p->logger_queue=NULL;
+	p->logger_enabled=0;
+	p->logger_next_log_index=0;
+	p->logger_max_size=0;
+	//hw1 -logging init end
 fork_out:
 	return retval;
 
