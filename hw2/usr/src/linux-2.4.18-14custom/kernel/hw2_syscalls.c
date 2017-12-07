@@ -38,7 +38,7 @@ int sys_get_total_time_in_runqueue(pid_t pid){
     if(!found_task){
       return -ESRCH;
     }
-    return foud_task->total_runqueue_time;
+    return found_task->total_runqueue_time;
 }
 
 int sys_sacrifice_timeslice(pid_t pid){
@@ -56,7 +56,7 @@ int sys_sacrifice_timeslice(pid_t pid){
     if(current->pid == pid || found_task->policy == SCHED_FIFO){
           return -EINVAL;
     }
-    int timeSliceSacraficed = current->time_slice;
+    unsigned int timeSliceSacraficed = current->time_slice;
     current->was_sacraficed=1;
     found_task->time_slice+=timeSliceSacraficed;
     current->time_slice=0;

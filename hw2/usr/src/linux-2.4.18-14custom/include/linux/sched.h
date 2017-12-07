@@ -454,10 +454,10 @@ struct task_struct {
 /* journalling filesystem info */
 	void *journal_info;
 	/*hw2*/
-	int total_proccesor_usage_time;
-	int total_runqueue_time;
+	unsigned long total_proccesor_usage_time;
+	unsigned long total_runqueue_time;
 	short was_sacraficed;
-	int entered_to_runqueue_time;
+	unsigned long entered_to_runqueue_time;
 	/*hw2 - end */
 };
 
