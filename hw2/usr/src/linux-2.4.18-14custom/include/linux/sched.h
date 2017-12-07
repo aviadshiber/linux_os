@@ -568,10 +568,8 @@ extern struct exec_domain	default_exec_domain;
 	total_runqueue_time:	0,						\
 	was_sacraficed:	0,						\
 	entered_to_runqueue_time:	0,						\
-
-} //HW2 after journal_info
-
-
+} 
+//HW2 after journal_info
 
 #ifndef INIT_TASK_SIZE
 # define INIT_TASK_SIZE	2048*sizeof(long)
