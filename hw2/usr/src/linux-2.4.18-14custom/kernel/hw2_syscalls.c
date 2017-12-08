@@ -70,8 +70,3 @@ int sys_sacrifice_timeslice(pid_t pid){
     current->time_slice=0;
     return timeSliceSacraficed;
 }
-
-int sys_search_pool_level(pid_t pid,int level){
-     printk("\n sys_search_pool_level called \n");
-     return 0;
-}

@@ -138,7 +138,7 @@ struct runqueue {
 	unsigned long nr_running, nr_switches, expired_timestamp;
 	signed long nr_uninterruptible;
 	task_t *curr, *idle;
-	prio_array_t *active, *expired, arrays[2];
+	prio_array_t *active, *expired,*pool, arrays[3];			//hw2 added pool prio_array
 	int prev_nr_running[NR_CPUS];
 	task_t *migration_thread;
 	list_t migration_queue;
@@ -255,9 +255,14 @@ static inline int effective_prio(task_t *p)
 static inline void activate_task(task_t *p, runqueue_t *rq)
 {
 	unsigned long sleep_time = jiffies - p->sleep_timestamp;
-	prio_array_t *array = rq->active;
-	p->entered_to_runqueue_time=jiffies; //HW2- taking the start up time of runqueue
-	if (!rt_task(p) && sleep_time) {
+	prio_array_t *array;	
+	if(p->policy == SCHED_POOL){						//hw2 adding to pool array
+		array = rq->pool;
+	}else{
+		array = rq->active;
+	}
+	p->entered_to_runqueue_time=jiffies; 				//HW2- taking the start up time of runqueue
+	if (!rt_task(p) && sleep_time) {			
 		/*
 		 * This code gives a bonus to interactive tasks. We update
 		 * an 'average sleep time' value here, based on
@@ -267,8 +272,10 @@ static inline void activate_task(task_t *p, runqueue_t *rq)
 		 */
 		p->sleep_avg += sleep_time;
 		if (p->sleep_avg > MAX_SLEEP_AVG)
-			p->sleep_avg = MAX_SLEEP_AVG;
-		p->prio = effective_prio(p);
+			p->sleep_avg = MAX_SLEEP_AVG;	
+		if(p->policy != SCHED_POOL){	//hw2 no need to do this this for pool
+			p->prio = effective_prio(p);
+		}
 	}
 	enqueue_task(p, array);
 	rq->nr_running++;
@@ -401,7 +408,7 @@ void wake_up_forked_process(task_t * p)
 	runqueue_t *rq = this_rq_lock();
 
 	p->state = TASK_RUNNING;
-	if (!rt_task(p)) {
+	if (!rt_task(p) && p->policy != SCHED_POOL) {			//hw2 we should not calc this for pool
 		/*
 		 * We decrease the sleep average of forking parents
 		 * and children as well, to keep max-interactive tasks
@@ -1176,7 +1183,7 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	else {
 		retval = -EINVAL;
 		if (policy != SCHED_FIFO && policy != SCHED_RR &&
-				policy != SCHED_OTHER)
+				policy != SCHED_OTHER && policy != SCHED_POOL)			//hw2 SCHED_POOL
 			goto out_unlock;
 	}
 
@@ -1185,10 +1192,15 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	 * 1..MAX_USER_RT_PRIO-1, valid priority for SCHED_OTHER is 0.
 	 */
 	retval = -EINVAL;
-	if (lp.sched_priority < 0 || lp.sched_priority > MAX_USER_RT_PRIO-1)
-		goto out_unlock;
-	if ((policy == SCHED_OTHER) != (lp.sched_priority == 0))
-		goto out_unlock;
+	if(policy == SCHED_POOL){
+		if (lp.sched_priority < 0 || lp.sched_priority >= MAX_PRIO)				//hw2 check for pool valid param
+			goto out_unlock;
+	}else{
+		if (lp.sched_priority < 0 || lp.sched_priority > MAX_USER_RT_PRIO-1)
+			goto out_unlock;
+		if ((policy == SCHED_OTHER) != (lp.sched_priority == 0))
+			goto out_unlock;
+	}
 
 	retval = -EPERM;
 	if ((policy == SCHED_FIFO || policy == SCHED_RR) &&
@@ -1200,16 +1212,20 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 
 	array = p->array;
 	if (array)
-		deactivate_task(p, task_rq(p));
+		deactivate_task(p, task_rq(p));			//removes process p from it's current array
 	retval = 0;
 	p->policy = policy;
-	p->rt_priority = lp.sched_priority;
-	if (policy != SCHED_OTHER)
-		p->prio = MAX_USER_RT_PRIO-1 - p->rt_priority;
-	else
-		p->prio = p->static_prio;
+	if(p->policy == SCHED_POOL){				//hw2 assigning the new prio to P (if its pool)
+		p->prio = lp.sched_priority;
+	}else{
+		p->rt_priority = lp.sched_priority;
+		if (policy != SCHED_OTHER)
+			p->prio = MAX_USER_RT_PRIO-1 - p->rt_priority;
+		else
+			p->prio = p->static_prio;
+	}
 	if (array)
-		activate_task(p, task_rq(p));
+		activate_task(p, task_rq(p));			//adding process p to the new schdualed array
 
 out_unlock:
 	task_rq_unlock(rq, &flags);
@@ -1632,10 +1648,11 @@ void __init sched_init(void)
 		rq = cpu_rq(i);
 		rq->active = rq->arrays;
 		rq->expired = rq->arrays + 1;
+		rq->pool = rq->arrays + 2;				//hw2 
 		spin_lock_init(&rq->lock);
 		INIT_LIST_HEAD(&rq->migration_queue);
 
-		for (j = 0; j < 2; j++) {
+		for (j = 0; j < 3; j++) {				//hw2 j<3 (changed from j<2)
 			array = rq->arrays + j;
 			for (k = 0; k < MAX_PRIO; k++) {
 				INIT_LIST_HEAD(array->queue + k);
@@ -1911,6 +1928,34 @@ int ll_copy_from_user(void *to, const void *from_user, unsigned long len)
 		conditional_schedule();
 	}
 	return 0;
+}
+
+int sys_search_pool_level(pid_t pid,int level){				//hw2 search_pool
+    printk("\n sys_search_pool_level called \n");
+    if(level < 0 || level >= MAX_PRIO){
+        return -EINVAL;
+    }
+    if(pid < 0){
+         return -ESRCH;
+    }
+    task_t* found_task=find_task_by_pid(pid);
+    if(!found_task || found_task->policy != SCHED_POOL){        //this func only works on sched_pool processes
+        return -ESRCH;
+    }
+    struct list_head* pos;
+    int i=0;
+    //runqueue_t *rq = this_rq();
+    list_t* level_list= (found_task->array->queue)+level;       //found_task->array should be pool here
+      if(list_empty(level_list)){
+		return -ESRCH; 
+	}
+    list_for_each(pos,level_list){
+		if(list_entry(pos,task_t,run_list)->pid == pid){
+			return i;
+		}
+		i++;
+	}
+	return -ESRCH;          //not found on this level
 }
 
 #ifdef CONFIG_LOLAT_SYSCTL
