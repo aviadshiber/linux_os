@@ -723,22 +723,24 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	 */
 	__save_flags(flags);
 	__cli();
-	if(current->was_sacraficed){//HW2
-		current->time_slice=1;
-	}
+	// if(current->was_sacraficed){//HW2
+	// 	current->time_slice=1;
+	// }
 	if (!current->time_slice)
 		BUG();
-	p->time_slice = (current->time_slice + 1) >> 1;
-	p->first_time_slice = 1;
-	current->time_slice >>= 1;
-	p->sleep_timestamp = jiffies;
+	if(SCHED_POOL != p->policy)	{
+		p->time_slice = (current->time_slice + 1) >> 1;
+		p->first_time_slice = 1;
+		current->time_slice >>= 1;
+		p->sleep_timestamp = jiffies;
+	}
 
 		/* HW2 */
 	//we nullfie as if we were initalized as frashed process (like init)
 	p->total_runqueue_time=0;
 	p->total_proccesor_usage_time=0;
 	p->entered_to_runqueue_time=0;
-	p->was_sacraficed=0;
+	//p->was_sacraficed=0;
 	/* HW2 -end*/
 
 	if (!current->time_slice) {
@@ -796,7 +798,6 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 		 * COW overhead when the child exec()s afterwards.
 		 */
 		current->need_resched = 1;
-
 
 fork_out:
 	return retval;

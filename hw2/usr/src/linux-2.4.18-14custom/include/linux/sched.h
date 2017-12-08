@@ -456,7 +456,7 @@ struct task_struct {
 	/*hw2*/
 	unsigned long total_proccesor_usage_time;
 	unsigned long total_runqueue_time;
-	short was_sacraficed;
+	//short was_sacraficed;
 	unsigned long entered_to_runqueue_time;
 	/*hw2 - end */
 };
@@ -566,7 +566,6 @@ extern struct exec_domain	default_exec_domain;
     journal_info:	NULL,						\
 	total_proccesor_usage_time:	0,						\
 	total_runqueue_time:	0,						\
-	was_sacraficed:	0,						\
 	entered_to_runqueue_time:	0,						\
 } 
 //HW2 after journal_info
@@ -638,6 +637,7 @@ extern void do_timer(struct pt_regs *);
 extern unsigned int * prof_buffer;
 extern unsigned long prof_len;
 extern unsigned long prof_shift;
+extern unsigned long time_pool; //HW2
 
 #define CURRENT_TIME (xtime.tv_sec)
 
