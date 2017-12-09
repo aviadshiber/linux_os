@@ -23,7 +23,7 @@
 		}
 #define ASSERT_DIFFERENT(a,b,line) \
 		if(a == b) { \
-			cout << endl << "assertion failed at line " << line << flush; \
+			cout << endl << "assertion failed at line " << line<<"!("<<a<<"!="<<b<<")"<<endl << flush; \
 		}
 #define ASSERT_TRUE(condition,line) \
 		if(!(condition)) { \
