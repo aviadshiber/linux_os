@@ -1,7 +1,11 @@
 {
     "files.associations": {
         "xutility": "c",
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "ios": "cpp",
+        "iosfwd": "cpp",
+        "type_traits": "cpp",
+        "xlocale": "cpp"
     }
 }
   

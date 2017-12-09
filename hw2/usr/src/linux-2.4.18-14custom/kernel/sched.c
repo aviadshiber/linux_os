@@ -1974,7 +1974,7 @@ int ll_copy_from_user(void *to, const void *from_user, unsigned long len)
  * HW2- ADDITIONAL METHODS FROM HERE
  **/
 int sys_search_pool_level(pid_t pid,int level){				//hw2 search_pool
-    printk("\n sys_search_pool_level called \n");
+    //printk("\n sys_search_pool_level called \n");
     if(level < 0 || level >= MAX_PRIO){
         return -EINVAL;
     }
@@ -2001,7 +2001,7 @@ int sys_search_pool_level(pid_t pid,int level){				//hw2 search_pool
 	return -ESRCH;          //not found on this level
 }
 int sys_get_remaining_timeslice(pid_t pid){
-      printk("\n sys_get_remaining_timeslice called on pid %d\n",pid);
+      //printk("\n sys_get_remaining_timeslice called on pid %d\n",pid);
       if(pid<0){
         return -ESRCH;
       }
@@ -2016,15 +2016,15 @@ int sys_get_remaining_timeslice(pid_t pid){
              return 0;
       }
       if(SCHED_POOL == found_task->policy){
-            printk("\n pid %d was detected as POOL , remaining time_pool (=%lu) \n",pid,time_pool);
+            //printk("\n pid %d was detected as POOL , remaining time_pool (=%lu) \n",pid,time_pool);
             return time_pool;
       }
-      printk("\n pid %d  , remaining timeslice (=%d) \n",pid,found_task->time_slice);
+      //printk("\n pid %d  , remaining timeslice (=%d) \n",pid,found_task->time_slice);
       return found_task->time_slice;
 }
 
 int sys_sacrifice_timeslice(pid_t pid){
-     printk("\n sys_sacrifice_timeslice called \n");
+     //printk("\n sys_sacrifice_timeslice called \n");
      if(pid<0){
           return -ESRCH;
     }
