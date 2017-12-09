@@ -162,6 +162,8 @@ static struct runqueue runqueues[NR_CPUS] __cacheline_aligned;
 # define finish_arch_switch(rq)		spin_unlock_irq(&(rq)->lock)
 #endif
 
+unsigned long time_pool;//HW2 -inner defenition
+void dummy_tick(void); //hw2
 /*
  * task_rq_lock - lock the runqueue a given task resides on and disable
  * interrupts.  Note the ordering: we can safely lookup the task_rq without
@@ -1166,14 +1168,14 @@ static int setscheduler(pid_t pid, int policy, struct sched_param *param)
 	unsigned long flags;
 	runqueue_t *rq;
 	task_t *p;
-
+	
 	if (!param || pid < 0)
 		goto out_nounlock;
 
 	retval = -EFAULT;
 	if (copy_from_user(&lp, param, sizeof(struct sched_param)))
 		goto out_nounlock;
-
+	printk("\nsetscheduler called with pid %d inorder to change policy to %d with prio %d\n",pid,policy,lp.sched_priority);
 	/*
 	 * We play safe to avoid deadlocks.
 	 */
@@ -1673,8 +1675,8 @@ extern void timer_bh(void);
 extern void tqueue_bh(void);
 extern void immediate_bh(void);
 
-void dummy_tick(); //hw2
-unsigned long time_pool;//HW2 -inner defenition
+
+
 
 void __init sched_init(void)
 {
@@ -1968,7 +1970,9 @@ int ll_copy_from_user(void *to, const void *from_user, unsigned long len)
 	}
 	return 0;
 }
-
+/**
+ * HW2- ADDITIONAL METHODS FROM HERE
+ **/
 int sys_search_pool_level(pid_t pid,int level){				//hw2 search_pool
     printk("\n sys_search_pool_level called \n");
     if(level < 0 || level >= MAX_PRIO){
@@ -1995,6 +1999,28 @@ int sys_search_pool_level(pid_t pid,int level){				//hw2 search_pool
 		i++;
 	}
 	return -ESRCH;          //not found on this level
+}
+int sys_get_remaining_timeslice(pid_t pid){
+      printk("\n sys_get_remaining_timeslice called on pid %d\n",pid);
+      if(pid<0){
+        return -ESRCH;
+      }
+      task_t* found_task=find_task_by_pid(pid);
+      if(!found_task){
+        return -ESRCH;
+      }
+      if(found_task->policy == SCHED_FIFO){           //process has no timeslice
+            return -EINVAL;
+      }
+      if(TASK_ZOMBIE == found_task->state ){
+             return 0;
+      }
+      if(SCHED_POOL == found_task->policy){
+            printk("\n pid %d was detected as POOL , remaining time_pool (=%lu) \n",pid,time_pool);
+            return time_pool;
+      }
+      printk("\n pid %d  , remaining timeslice (=%d) \n",pid,found_task->time_slice);
+      return found_task->time_slice;
 }
 
 int sys_sacrifice_timeslice(pid_t pid){
@@ -2070,6 +2096,7 @@ out:
 	spin_unlock(&rq->lock);
 }
 
+<<<<<<< HEAD
 void sys_print_pool_level(int level){		//hw2 printing pool array
     if(level<0 && level > 139){
 		printk("\nERROR LEVEL BOUNDS!\n");
@@ -2088,6 +2115,11 @@ void sys_print_pool_level(int level){		//hw2 printing pool array
     }
     printk("\n");
 }
+=======
+/**
+ * HW2 - ADITIONAL METHODS END HERE
+ * */
+>>>>>>> 2c89229194689b7662c16772c019964d8a92f7f6
 
 #ifdef CONFIG_LOLAT_SYSCTL
 struct low_latency_enable_struct __enable_lowlatency = { 0, };

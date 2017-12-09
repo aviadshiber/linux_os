@@ -2,30 +2,6 @@
 #include <linux/slab.h>
 #include <asm/uaccess.h>
 
-void dummy_tick();
-
-
-int sys_get_remaining_timeslice(pid_t pid){
-      printk("\n sys_get_remaining_timeslice called \n");
-      if(pid<0){
-        return -ESRCH;
-      }
-      task_t* found_task=find_task_by_pid(pid);
-      if(!found_task){
-        return -ESRCH;
-      }
-      if(found_task->policy == SCHED_FIFO){           //process has no timeslice
-            return -EINVAL;
-      }
-      if(TASK_ZOMBIE == found_task->state ){
-             return 0;
-      }
-      if(SCHED_POOL == found_task->state){
-            return time_pool;
-      }
-      return found_task->time_slice;
-}
-
 int sys_get_total_processor_usage(pid_t pid){
     printk("\n sys_get_total_processor_usage called \n");
     if(pid<0){
@@ -52,4 +28,8 @@ int sys_get_total_time_in_runqueue(pid_t pid){
        found_task->entered_to_runqueue_time=jiffies; // it is still in runqueue so we sample again
     }
     return found_task->total_runqueue_time;
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 2c89229194689b7662c16772c019964d8a92f7f6
