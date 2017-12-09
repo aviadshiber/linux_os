@@ -28,8 +28,4 @@ int sys_get_total_time_in_runqueue(pid_t pid){
        found_task->entered_to_runqueue_time=jiffies; // it is still in runqueue so we sample again
     }
     return found_task->total_runqueue_time;
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 2c89229194689b7662c16772c019964d8a92f7f6
