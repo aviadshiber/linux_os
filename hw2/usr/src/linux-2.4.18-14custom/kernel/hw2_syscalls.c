@@ -53,5 +53,3 @@ int sys_get_total_time_in_runqueue(pid_t pid){
     }
     return found_task->total_runqueue_time;
 }
-
-

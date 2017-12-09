@@ -85,4 +85,16 @@ int search_pool_level(pid_t pid,int level){
 	return __res;
 }
 
+void print_pool_level(int level){
+	int __res;
+	__asm__(
+		"int $0x80;"
+		: "=a" (__res)
+		: "0" (251), "b" (level)
+		:"memory"
+		);
+}
+
+
+
 #endif

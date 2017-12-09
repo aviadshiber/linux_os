@@ -2070,6 +2070,25 @@ out:
 	spin_unlock(&rq->lock);
 }
 
+void sys_print_pool_level(int level){		//hw2 printing pool array
+    if(level<0 && level > 139){
+		printk("\nERROR LEVEL BOUNDS!\n");
+	}
+    struct list_head* pos;
+    runqueue_t *rq = this_rq();
+    int pid;
+    list_t* level_list= (rq->pool->queue)+level;       //pool level list to print
+    if(list_empty(level_list)){
+      printk("\n pool level %d is empty! :(\n",level);
+    }
+    list_for_each(pos,level_list){
+      printk("\n pool level %d : ",level);
+	pid=list_entry(pos,task_t,run_list)->pid;
+	printk("(%d)->",pid);
+    }
+    printk("\n");
+}
+
 #ifdef CONFIG_LOLAT_SYSCTL
 struct low_latency_enable_struct __enable_lowlatency = { 0, };
 #endif

@@ -13,14 +13,18 @@
 
 int testPool(){
     struct sched_param param;
+     param.sched_priority=0;
     int pid1=getpid();
-     int son1=fork();
-     int son2=fork();
-     if(son1 != 0 && son2 != 0 ){
-         int i;
-        param.sched_priority=8;
-         //sched_setscheduler(son1,SCHED_POOL,&param);
-         //assert(search_pool_level(son1,8)==0);  
+    print_pool_level(0);
+    sched_setscheduler(pid1,SCHED_POOL,&param);
+    print_pool_level(0);
+    int son1=fork();
+    int son2=fork();
+    if(son1 != 0 && son2 != 0 ){
+    //      int i;
+          sched_setscheduler(son1,SCHED_POOL,&param);
+          print_pool_level(0);
+    //      assert(search_pool_level(son1,8)==1);  
         // printf("\n %d is in the first place now",son1);
         // sched_setscheduler(son2,SCHED_POOL,&param); // now the pool array at level 8 should look like:8: (son1)->(son2)
         // printf("\n %d is in the second second now",son2);
@@ -78,6 +82,7 @@ int testPool(){
 
  int main(){
      testPool();
+     //print_pool_level(0);
     // int pid=getpid();
     // int timeslice=get_remaining_timeslice(pid);
     // printf("\n father process number %d timeslice is %d\n",pid,timeslice);
