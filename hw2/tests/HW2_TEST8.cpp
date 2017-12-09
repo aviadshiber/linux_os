@@ -105,9 +105,44 @@ bool checkPoolPrint() {
 	return true;
 }
 
+bool yieldPrioPool() {
+struct sched_param param;
+	param.sched_priority = 1;
+
+	int child = fork();
+	if(child == 0) {
+		sleep(2);
+
+		exit(0);
+	}
+	else {			//father's code
+		int pid = getpid();
+		sched_setscheduler(child, SCHED_POOL, &param);
+		print_pool_level(0); //empty list							
+		print_pool_level(1); //child in list level 1 (child)->
+		for(int i = 0; i < 20; i++)
+			sacrifice_timeslice(child); // add time to pool
+		param.sched_priority = 0; 
+		sched_setscheduler(pid, SCHED_POOL, &param);
+		print_pool_level(0);		
+		print_pool_level(1);
+		int grandson=fork();
+		if (grandson==0){
+			print_pool_level(0);
+			print_pool_level(1);
+			exit(0);
+		}else{
+			wait(NULL);
+		}
+		wait(NULL);
+	}
+	return true;
+}
+
 int main() {
 	int pid = getpid();
-	RUN_TEST("checkPoolPrint", checkPoolPrint());
+	//RUN_TEST("checkPoolPrint", checkPoolPrint());
+	RUN_TEST("checkYieldPool", yieldPrioPool());
 
 	return 0;
 }
