@@ -29,6 +29,14 @@ public:
 	void waitForAnswer();
 
 protected:
+	int class_size;
+	int current_students_num;
+	pthread_cond_t ta_gave_answer;
+	mutex_t lock;
+
+	//some data structure to hold the students data
+	//array for keeping their status?
+	
 	// TODO: define the member variables
 	// Remember: you can only use mutexes and condition variables!
 };
