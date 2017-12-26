@@ -33,6 +33,7 @@ protected:
 	int current_students_num;
 	pthread_cond_t ta_gave_answer;
 	mutex_t lock;
+	bool isDoorOpen;
 
 	//some data structure to hold the students data
 	//array for keeping their status?

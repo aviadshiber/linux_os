@@ -4,6 +4,20 @@
         "type_traits": "cpp",
         "xutility": "cpp",
         "sched.h": "c",
-        "utility": "c"
+        "utility": "c",
+        "system_error": "cpp",
+        "xtr1common": "cpp",
+        "deque": "cpp",
+        "list": "cpp",
+        "vector": "cpp",
+        "xhash": "cpp",
+        "xiosbase": "cpp",
+        "xstring": "cpp",
+        "xlocale": "cpp",
+        "iostream": "cpp",
+        "unordered_map": "cpp",
+        "istream": "cpp",
+        "tuple": "cpp",
+        "xlocnum": "cpp"
     }
 }

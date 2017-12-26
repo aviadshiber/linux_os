@@ -12,6 +12,8 @@ public:
 protected:
 	sem_t sem1;
 	sem_t sem2;
+	sem_t sem_mutex;
+	int finished_threads;
 	int thread_limit;
 };
 
