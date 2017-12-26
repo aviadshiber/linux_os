@@ -12,10 +12,16 @@ void Barrier::wait() {
     sem_getvalue(&sem2, &value);
     if(value == 0){      //when the n'th process entered
         for(int i=0;i<thread_limit;i++){
-            sem_post(&sem1);
+            sem_post(&sem1); //here we open the lower gate
         }
     }
     sem_wait(&sem1);     //n-1 first prcoesses are waiting here for the last process to arrive
+    sem_getvalue(&sem1, &value);
+    if(value==0){
+        for(int i=0;i<thread_limit;i++){
+            sem_post(&sem2); //here we open the lower gate
+        }
+    }
 }
 
 Barrier::~Barrier() {
