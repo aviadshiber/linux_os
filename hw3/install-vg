@@ -1,0 +1,33 @@
+#!/bin/bash
+
+set -e
+
+# setup
+cd
+rm -rf vg
+mkdir vg
+cd vg
+root="$(pwd)/root"
+
+# prepare
+wget 'https://sourceware.org/ftp/valgrind/valgrind-3.13.0.tar.bz2'
+tar xf valgrind-3.13.0.tar.bz2
+cd valgrind-3.13.0
+
+# patch
+sed -i '1904s/4/5/' coregrind/m_syswrap/syswrap-linux.c
+
+# build & install
+./configure --prefix="$root"
+make
+make install
+
+# cleanup
+cd ..
+rm -rf valgrind-3.13.0
+rm -rf valgrind-3.13.0.tar.bz2
+
+# done
+echo
+echo "Installation complete. Type '~/vg/root/bin/valgrind' to run Valgrind."
+echo
