@@ -10,15 +10,13 @@ ReceptionHour::ReceptionHour(unsigned int max_waiting_students) {
 	pthread_mutexattr_init(&mutex_attr);
 	pthread_mutexattr_settype(&mutex_attr,PTHREAD_MUTEX_ERRORCHECK);
 
-	// pthread_mutex_init(&studentArriveLock,&mutex_attr);
-	// pthread_cond_init(&studentArrived,NULL);
+	pthread_mutex_init(&studentArriveLock,&mutex_attr);
+	pthread_cond_init(&studentArrived,NULL);
 	pthread_mutex_init(&questionAskedLock,&mutex_attr);
 	pthread_cond_init(&questionAsked,NULL);
 	pthread_mutex_init(&taAnsweredLock,&mutex_attr);
 	pthread_cond_init(&taAnswered,NULL);
 
-	// pthread_mutex_init(&studentFinishedLock,&mutex_attr);
-	// pthread_cond_init(&studentFinished,NULL);
 
 	pthread_mutex_init(&lock,&mutex_attr);
 
@@ -42,25 +40,7 @@ void* ReceptionHour::taFunction(void* obj){
 }
 
 
-ReceptionHour::~ReceptionHour() {
-	int fail=0;
-	// fail|= pthread_mutex_destroy(&studentArriveLock);
-	// fail|=pthread_cond_destroy(&studentArrived);
-	fail|=pthread_mutex_destroy(&questionAskedLock);
-	fail|=pthread_cond_destroy(&questionAsked);
-	fail|=pthread_mutex_destroy(&taAnsweredLock);
-	fail|=pthread_cond_destroy(&taAnswered);
-	// fail|=pthread_mutex_destroy(&studentFinishedLock);
-	// fail|=pthread_cond_destroy(&studentFinished);
 
-	fail|=pthread_mutex_destroy(&lock);
-	fail|=pthread_mutex_destroy(&taAvailableForQuesiton);
-	
-	fail|=pthread_mutexattr_destroy(&mutex_attr);
-	if(fail){
-		fprintf(stderr,"failed to desotroy reception hour");
-	}
-}
 
 void ReceptionHour::startStudent(unsigned int id) {
 	pthread_t thread;
@@ -70,54 +50,40 @@ void ReceptionHour::startStudent(unsigned int id) {
 	pthread_create(&thread,NULL,studentFunction,this);
 	
 }
-//@Deprecated
-void  ReceptionHour::waitForStudentToFinish(){
-		// pthread_mutex_lock(&studentFinished);
-		// while(!isStudentFinished){
-		// 	pthread_cond_wait(&studentFinished);
-		// }
-		// pthread_mutex_unlock(&studentFinished);
-}
+
 
 void* ReceptionHour::studentFunction(void* obj){
 	
 	ReceptionHour* reception=(ReceptionHour*)obj;
 	StudentStatus status= reception->waitForTeacher();
 	if(StudentStatus::ENTERED != status){
-		waitForStudentToFinish();
 		return new StudentStatus(status);
 	}
-	pthread_mutex_lock(&lock);
-	//pthread_mutex_lock(&reception->studentArriveLock);
-	reception->numOfStudents++;
-	//pthread_cond_signal(&reception->studentArrived);
-	//pthread_mutex_unlock(&reception->studentArriveLock);
-	pthread_mutex_unlock(&lock);
-	
 	
 	reception->askQuestion();
 	reception->waitForAnswer();
-	waitForStudentToFinish();
+
 	return new StudentStatus(StudentStatus::ENTERED);
+}
+/**
+ * the method wait for the student to return status, and collects the student status from his thread.
+ * */
+StudentStatus ReceptionHour::collectStudentStatus(pthread_t studentThread){
+	void* status_vp;
+	pthread_join(studentThread,&status_vp);
+	StudentStatus* studentStatusPointer=static_cast<StudentStatus*>(status_vp);
+	StudentStatus studentStatus=*(studentStatusPointer);
+	delete studentStatusPointer;
+	return studentStatus;
 }
 
 StudentStatus ReceptionHour::finishStudent(unsigned int id) {
 	//we should use join here
 	pthread_mutex_lock(&lock);
-	pthread_t studentThread= idToThread.find(id)->second;
-	pthread_mutex_unlock(&lock);
-	StudentStatus *status;
-	//now we wait for student to finish his thread and we get his status
-	pthread_join(studentThread,(void**)&status);
-	pthread_mutex_lock(&lock);
-	StudentStatus finalStatus=*status;
-	if(StudentStatus::ENTERED == finalStatus){
-		numOfStudents--;
-	}
-	delete status;
+	StudentStatus status = collectStudentStatus(idToThread.find(id)->second);
 	pthread_mutex_unlock(&lock);
 	
-	return finalStatus;
+	return status;
 }
 
 void ReceptionHour::closeTheDoor() {
@@ -137,11 +103,11 @@ bool ReceptionHour::waitForStudent() {
 		return false;
 	}
 	pthread_mutex_unlock(&lock);
-	// pthread_mutex_lock(&studentArriveLock);
-	// while(0 == numOfStudents && !isDoorClosed){
-	// 	pthread_cond_wait(&studentArrived,&studentArriveLock);
-	// }
-	// pthread_mutex_unlock(&studentArriveLock);
+	pthread_mutex_lock(&studentArriveLock);
+	while(0 == numOfStudents && !isDoorClosed){
+		pthread_cond_wait(&studentArrived,&studentArriveLock);
+	}
+	pthread_mutex_unlock(&studentArriveLock);
 	return true; 
 }
 
@@ -158,6 +124,9 @@ void ReceptionHour::waitForQuestion() {
 void ReceptionHour::giveAnswer() {
 	pthread_mutex_lock(&taAnsweredLock);
 	isQuestionAnswered=true;
+	pthread_mutex_lock(&lock);
+	numOfStudents--;
+	pthread_mutex_unlock(&lock);
 	pthread_cond_signal(&taAnswered);
 	pthread_mutex_unlock(&taAnsweredLock);
 }
@@ -172,6 +141,10 @@ StudentStatus ReceptionHour::waitForTeacher() {
 	}else if(numOfStudents>=maxStudents){
 		status=StudentStatus::LEFT_BECAUSE_NO_SEAT;
 	}
+	pthread_mutex_lock(&reception->studentArriveLock);
+	numOfStudents++; //idan said that should be in wait for answer why?
+	pthread_cond_signal(&reception->studentArrived);
+	pthread_mutex_unlock(&reception->studentArriveLock);
 	pthread_mutex_unlock(&lock);
 	return status; 
 }
@@ -179,6 +152,7 @@ StudentStatus ReceptionHour::waitForTeacher() {
 void ReceptionHour::askQuestion() {
 	// we lock here mutex untill ta give answer
 	pthread_mutex_lock(&taAvailableForQuesiton);
+	//signal that question been asked
 	pthread_mutex_lock(&questionAskedLock);
 	isQuestionAsked=true;
 	pthread_cond_signal(&questionAsked);
@@ -186,6 +160,7 @@ void ReceptionHour::askQuestion() {
 }
 
 void ReceptionHour::waitForAnswer() {
+	//conidion wait for TA to answer
 	pthread_mutex_lock(&taAnsweredLock);
 	while(!isQuestionAnswered){
 		pthread_cond_wait(&taAnswered,&taAnsweredLock);
@@ -196,3 +171,22 @@ void ReceptionHour::waitForAnswer() {
 	pthread_mutex_unlock(&taAnsweredLock);
 }
 
+
+ReceptionHour::~ReceptionHour() {
+	int fail=0;
+	fail|= pthread_mutex_destroy(&studentArriveLock);
+	fail|=pthread_cond_destroy(&studentArrived);
+	fail|=pthread_mutex_destroy(&questionAskedLock);
+	fail|=pthread_cond_destroy(&questionAsked);
+	fail|=pthread_mutex_destroy(&taAnsweredLock);
+	fail|=pthread_cond_destroy(&taAnswered);
+
+
+	fail|=pthread_mutex_destroy(&lock);
+	fail|=pthread_mutex_destroy(&taAvailableForQuesiton);
+	
+	fail|=pthread_mutexattr_destroy(&mutex_attr);
+	if(fail){
+		fprintf(stderr,"failed to desotroy reception hour");
+	}
+}
