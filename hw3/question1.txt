@@ -1,0 +1,30 @@
+Mutex m; // initially unlocked
+int id; //Initially is 0
+
+
+int sys_global_lock() {
+	lock(m);
+	if(id==current->pid){
+		unlock(m);
+		return -EPERM;
+	}
+	while (global_lock != 0) {
+	cond_wait(global_queue, m, (global_lock==0));
+	}
+	global_lock = 1;
+	id=current->pid;
+	unlock(m);
+	return 0;
+}
+int sys_global_unlock() {
+	lock(m);
+	if(id!=current->pid){
+		unlock(m);
+		return -EPERM;
+	}
+	global_lock = 0; //Free lock
+	cond_signal(global_queue);
+	//Wakes a single process waiting in global_queue
+	unlock(m);
+	return 0;
+}

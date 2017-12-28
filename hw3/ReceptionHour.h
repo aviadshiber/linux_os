@@ -47,18 +47,26 @@ protected:
 	bool isDoorClosed;
 	bool isQuestionAsked;
 	bool isQuestionAnswered;
+	//bool isStudentFinished;
 	pthread_mutex_t lock;
 	int maxStudents;
 	int numOfStudents;
 	unordered_map<int,pthread_t> idToThread;
-	pthread_cond_t studentArrived;
-	pthread_mutex_t studentArriveLock;
+	// pthread_cond_t studentArrived;
+	// pthread_mutex_t studentArriveLock;
 	pthread_cond_t questionAsked;
 	pthread_mutex_t questionAskedLock;
 	pthread_cond_t taAnswered;
 	pthread_mutex_t taAnsweredLock;
 	pthread_t taThread;
 	pthread_mutexattr_t mutex_attr;
+
+	// pthread_mutex_t studentFinishedLock;
+	// pthread_cond_t studentFinished;
+
+	pthread_mutex_t taAvailableForQuesiton;
+private:
+static void waitForStudentToFinish();
 
 
 	// Remember: you can only use mutexes and condition variables!
