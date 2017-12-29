@@ -1,6 +1,7 @@
 #include "ReceptionHour.h"
 
 ReceptionHour::ReceptionHour(unsigned int max_waiting_students) {
+	//should we protect here with mutex?
 	maxStudents=max_waiting_students;
 	numOfStudents=0;
 	isDoorClosed=false;
@@ -56,10 +57,9 @@ void* ReceptionHour::studentFunction(void* obj){
 	
 	ReceptionHour* reception=(ReceptionHour*)obj;
 	StudentStatus status= reception->waitForTeacher();
-	if(StudentStatus::ENTERED != status){
+	if(StudentStatus::ENTERED != status){		//student didn't enter
 		return new StudentStatus(status);
 	}
-	
 	reception->askQuestion();
 	reception->waitForAnswer();
 
@@ -138,14 +138,19 @@ StudentStatus ReceptionHour::waitForTeacher() {
 	StudentStatus status = StudentStatus::ENTERED;
 	if(isDoorClosed){
 		status = StudentStatus::LEFT_BECAUSE_DOOR_CLOSED;
+		pthread_mutex_unlock(&lock);
+		return status;					//if the door is closed student leaves
 	}else if(numOfStudents>=maxStudents){
 		status=StudentStatus::LEFT_BECAUSE_NO_SEAT;
+		pthread_mutex_unlock(&lock);
+		return status; 					//if the room is full student leaves
 	}
+	//if student can enter..
 	pthread_mutex_lock(&reception->studentArriveLock);
 	numOfStudents++; //idan said that should be in wait for answer why?
-	pthread_cond_signal(&reception->studentArrived);
-	pthread_mutex_unlock(&reception->studentArriveLock);
 	pthread_mutex_unlock(&lock);
+	pthread_cond_signal(&reception->studentArrived);		//student entered to room
+	pthread_mutex_unlock(&reception->studentArriveLock);
 	return status; 
 }
 
