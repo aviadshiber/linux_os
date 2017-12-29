@@ -22,6 +22,15 @@ enum StudentStatus {
 // 	}
 // };
 
+
+class LocalMutex{
+	public:
+	LocalMutex(pthread_mutex_t &lock);
+	~LocalMutex();
+	private:
+	pthread_mutex_t local_mutex;
+};
+
 class ReceptionHour {
 public:
 	ReceptionHour(unsigned int max_waiting_students);
@@ -47,9 +56,11 @@ protected:
 	bool isDoorClosed;
 	bool isQuestionAsked;
 	bool isQuestionAnswered;
-	pthread_mutex_t lock;
-	int maxStudents;
-	int numOfStudents;
+	pthread_mutex_t numOfStudentLock;
+	pthread_mutex_t DoorLock;
+	pthread_mutex_t mapLock;
+	const unsigned int maxStudents;
+	unsigned int numOfStudents;
 	unordered_map<int,pthread_t> idToThread;
 	pthread_cond_t studentArrived;
 	pthread_mutex_t studentArriveLock;
@@ -57,6 +68,7 @@ protected:
 	pthread_mutex_t questionAskedLock;
 	pthread_cond_t taAnswered;
 	pthread_mutex_t taAnsweredLock;
+
 	pthread_t taThread;
 	pthread_mutexattr_t mutex_attr;
 
@@ -64,7 +76,13 @@ protected:
 	pthread_mutex_t taAvailableForQuesiton;
 private:
 static StudentStatus collectStudentStatus(pthread_t studentThread);
-
+static void* allocateStudentStatus(StudentStatus status);
+void IncNumOfStudents();
+void DecNumofStudents();
+bool canAcceptStudents();
+bool canFinishReceptionHour();
+bool DoorClosed();
+bool isClassFull();
 	// Remember: you can only use mutexes and condition variables!
 };
 

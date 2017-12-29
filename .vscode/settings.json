@@ -19,6 +19,7 @@
         "istream": "cpp",
         "tuple": "cpp",
         "xlocnum": "cpp",
-        "iosfwd": "cpp"
+        "iosfwd": "cpp",
+        "streambuf": "cpp"
     }
 }
