@@ -27,18 +27,18 @@ public:
 	ReceptionHour(unsigned int max_waiting_students);
 	virtual ~ReceptionHour();
 
-	void startStudent(unsigned int id);
-	StudentStatus finishStudent(unsigned int id);
+virtual	void startStudent(unsigned int id);
+virtual	StudentStatus finishStudent(unsigned int id);
 	
-	void closeTheDoor();
+virtual	void closeTheDoor();
 
-	bool waitForStudent();
-	void waitForQuestion();
-	void giveAnswer();
+virtual	bool waitForStudent();
+virtual	void waitForQuestion();
+virtual	void giveAnswer();
 
-	StudentStatus waitForTeacher();
-	void askQuestion();
-	void waitForAnswer();
+virtual	StudentStatus waitForTeacher();
+virtual	void askQuestion();
+virtual	void waitForAnswer();
 protected:
 	static void* taFunction(void* obj);
 	static void* studentFunction(void* obj);
@@ -47,13 +47,12 @@ protected:
 	bool isDoorClosed;
 	bool isQuestionAsked;
 	bool isQuestionAnswered;
-	//bool isStudentFinished;
 	pthread_mutex_t lock;
 	int maxStudents;
 	int numOfStudents;
 	unordered_map<int,pthread_t> idToThread;
-	// pthread_cond_t studentArrived;
-	// pthread_mutex_t studentArriveLock;
+	pthread_cond_t studentArrived;
+	pthread_mutex_t studentArriveLock;
 	pthread_cond_t questionAsked;
 	pthread_mutex_t questionAskedLock;
 	pthread_cond_t taAnswered;
@@ -61,13 +60,10 @@ protected:
 	pthread_t taThread;
 	pthread_mutexattr_t mutex_attr;
 
-	// pthread_mutex_t studentFinishedLock;
-	// pthread_cond_t studentFinished;
 
 	pthread_mutex_t taAvailableForQuesiton;
 private:
-static void waitForStudentToFinish();
-
+static StudentStatus collectStudentStatus(pthread_t studentThread);
 
 	// Remember: you can only use mutexes and condition variables!
 };

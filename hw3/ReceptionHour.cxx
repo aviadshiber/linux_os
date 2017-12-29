@@ -43,8 +43,8 @@ void* ReceptionHour::taFunction(void* obj){
 
 
 void ReceptionHour::startStudent(unsigned int id) {
-	pthread_t thread;
 	pthread_mutex_lock(&lock);
+	pthread_t thread;
 	idToThread.insert({id,thread}); //here we copy the student into the map
 	pthread_mutex_unlock(&lock);
 	pthread_create(&thread,NULL,studentFunction,this);
@@ -78,7 +78,7 @@ StudentStatus ReceptionHour::collectStudentStatus(pthread_t studentThread){
 }
 
 StudentStatus ReceptionHour::finishStudent(unsigned int id) {
-	//we should use join here
+
 	pthread_mutex_lock(&lock);
 	StudentStatus status = collectStudentStatus(idToThread.find(id)->second);
 	pthread_mutex_unlock(&lock);
@@ -91,6 +91,26 @@ void ReceptionHour::closeTheDoor() {
 	isDoorClosed=true;
 	pthread_mutex_unlock(&lock);
 }
+
+/**
+ * try to enter the room
+ * */
+StudentStatus ReceptionHour::waitForTeacher() {
+	pthread_mutex_lock(&lock);
+	StudentStatus status = StudentStatus::ENTERED;
+	if(isDoorClosed){
+		status = StudentStatus::LEFT_BECAUSE_DOOR_CLOSED;
+	}else if(numOfStudents>=maxStudents){
+		status = StudentStatus::LEFT_BECAUSE_NO_SEAT;
+	}
+	pthread_mutex_lock(&reception->studentArriveLock);
+	numOfStudents++; //idan said that should be in wait for answer why?
+	pthread_cond_signal(&reception->studentArrived);
+	pthread_mutex_unlock(&reception->studentArriveLock);
+	pthread_mutex_unlock(&lock);
+	return status; 
+}
+
 /**
  wait for student to arrive.
   if the door is closed or the room is full return false. otherwise true.
@@ -130,24 +150,7 @@ void ReceptionHour::giveAnswer() {
 	pthread_cond_signal(&taAnswered);
 	pthread_mutex_unlock(&taAnsweredLock);
 }
-/**
- * try to enter the room
- * */
-StudentStatus ReceptionHour::waitForTeacher() {
-	pthread_mutex_lock(&lock);
-	StudentStatus status = StudentStatus::ENTERED;
-	if(isDoorClosed){
-		status = StudentStatus::LEFT_BECAUSE_DOOR_CLOSED;
-	}else if(numOfStudents>=maxStudents){
-		status=StudentStatus::LEFT_BECAUSE_NO_SEAT;
-	}
-	pthread_mutex_lock(&reception->studentArriveLock);
-	numOfStudents++; //idan said that should be in wait for answer why?
-	pthread_cond_signal(&reception->studentArrived);
-	pthread_mutex_unlock(&reception->studentArriveLock);
-	pthread_mutex_unlock(&lock);
-	return status; 
-}
+
 
 void ReceptionHour::askQuestion() {
 	// we lock here mutex untill ta give answer
