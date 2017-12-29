@@ -56,10 +56,9 @@ void* ReceptionHour::studentFunction(void* obj){
 	
 	ReceptionHour* reception=(ReceptionHour*)obj;
 	StudentStatus status= reception->waitForTeacher();
-	if(StudentStatus::ENTERED != status){
+	if(StudentStatus::ENTERED != status){		//student didn't enter
 		return new StudentStatus(status);
 	}
-	
 	reception->askQuestion();
 	reception->waitForAnswer();
 
@@ -150,7 +149,29 @@ void ReceptionHour::giveAnswer() {
 	pthread_cond_signal(&taAnswered);
 	pthread_mutex_unlock(&taAnsweredLock);
 }
-
+/**
+ * try to enter the room
+ * */
+StudentStatus ReceptionHour::waitForTeacher() {
+	pthread_mutex_lock(&lock);
+	StudentStatus status = StudentStatus::ENTERED;
+	if(isDoorClosed){
+		status = StudentStatus::LEFT_BECAUSE_DOOR_CLOSED;
+		pthread_mutex_unlock(&lock);
+		return status;					//if the door is closed student leaves
+	}else if(numOfStudents>=maxStudents){
+		status=StudentStatus::LEFT_BECAUSE_NO_SEAT;
+		pthread_mutex_unlock(&lock);
+		return status; 					//if the room is full student leaves
+	}
+	//if student can enter..
+	pthread_mutex_lock(&reception->studentArriveLock);
+	numOfStudents++; //idan said that should be in wait for answer why?
+	pthread_mutex_unlock(&lock);
+	pthread_cond_signal(&reception->studentArrived);		//student entered to room
+	pthread_mutex_unlock(&reception->studentArriveLock);
+	return status; 
+}
 
 void ReceptionHour::askQuestion() {
 	// we lock here mutex untill ta give answer
