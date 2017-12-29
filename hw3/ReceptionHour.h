@@ -77,12 +77,15 @@ protected:
 private:
 static StudentStatus collectStudentStatus(pthread_t studentThread);
 static void* allocateStudentStatus(StudentStatus status);
+pthread_t findStudent(unsigned int id);
 void IncNumOfStudents();
 void DecNumofStudents();
 bool canAcceptStudents();
 bool canFinishReceptionHour();
 bool DoorClosed();
 bool isClassFull();
+
+
 	// Remember: you can only use mutexes and condition variables!
 };
 

@@ -94,13 +94,27 @@ void* ReceptionHour::allocateStudentStatus(StudentStatus status){
 	return static_cast<void*>(statusPointer);
 }
 
-StudentStatus ReceptionHour::finishStudent(unsigned int id) {
+pthread_t ReceptionHour::findStudent(unsigned int id){
 	pthread_t studentThread;
 	{
 		LocalMutex LocalMutex(mapLock);
 		printf("Finsihed student method was called with id=[%d] . trying to collect his status (thread %d)\n",id,pthread_self());
 		studentThread=idToThread.find(id)->second;
+		std::unordered_map<int,pthread_t>::const_iterator findResult = idToThread.find(id);
+		if ( findResult == idToThread.end() ){
+				fprintf(stderr,"failed to find student id=%d\n",id);
+				throw std::runtime_error("could not find student!");
+		}
+		else{
+			studentThread=findResult->second;
+		}
 	}
+	return studentThread;
+}
+
+StudentStatus ReceptionHour::finishStudent(unsigned int id) {
+	pthread_t studentThread=findStudent(id);
+
 	StudentStatus status = collectStudentStatus(studentThread);
 
 	printf("Student %d that was collected with %d status (thread %d)\n",id,status,pthread_self());
@@ -170,6 +184,8 @@ bool ReceptionHour::canAcceptStudents(){
 	{
 		LocalMutex localMutex(DoorLock);
 		result &= (!isDoorClosed);
+		if(result)
+			printf("TA has no students in the room, and door is open (need to go to sleep).\n");
 	}
 	return result;
 }
@@ -201,22 +217,22 @@ bool ReceptionHour::waitForStudent() {
 	}
 	{//ta should conditionaly wait until a student arrive
 		LocalMutex localMutex(studentArriveLock);
-		printf("TA is waiting for student to arrive (thread %d)\n",pthread_self());
+		printf("TA is tying to be blocked until a student arrive or door is closed (thread %d)\n",pthread_self());
 		while(canAcceptStudents()){
 			pthread_cond_wait(&studentArrived,&studentArriveLock);
 		}
-		printf("TA FINISHED waiting for student to arrive (thread %d)\n",pthread_self());
+		printf("TA is no longer blocked, because there are students in the class or the door is closed (thread %d)\n",pthread_self());
 	}
 	return true; 
 }
 
 void ReceptionHour::waitForQuestion() {
 	LocalMutex localMutex(questionAskedLock);
-	printf("TA is waiting for question (thread %d)\n",pthread_self());
+	printf("TA is tying to be blocked untill he gets a question (thread %d)\n",pthread_self());
 	while(!isQuestionAsked){
 		pthread_cond_wait(&questionAsked,&questionAskedLock);
 	}
-	printf("TA FINISHED waiting for question (thread %d)\n",pthread_self());
+	printf("TA IS NO LONGER BLOCKED, he got a question (thread %d)\n",pthread_self());
 	isQuestionAsked=false;
 }
 
@@ -254,12 +270,12 @@ void ReceptionHour::giveAnswer() {
 void ReceptionHour::waitForAnswer() {
 	//conidion wait for TA to answer
 	LocalMutex localMutex(taAnsweredLock);
-	printf("Student is waiting for Ta to answer (thread %d)\n",pthread_self());
+	printf("Student is tring to be blocked until he gets an answer from Ta(thread %d)\n",pthread_self());
 	while(!isQuestionAnswered){
 		pthread_cond_wait(&taAnswered,&taAnsweredLock);
 	}
 	isQuestionAnswered=false;
-	printf("Student FINISHED waiting for Ta to answer, now other student can come along[unlocking taAvailableForQuesiton] (thread %d)\n",pthread_self());
+	printf("Student IS NO LONGET BLOCKED, he got his answer from TA. now other student can come along[unlocking taAvailableForQuesiton] (thread %d)\n",pthread_self());
 	//we unlock because the ta gave the answer
 	pthread_mutex_unlock(&taAvailableForQuesiton); //TODO
 	
