@@ -201,11 +201,12 @@ bool ReceptionHour::isClassEmpty(){
 
 bool ReceptionHour::needToWaitForStudents(){
 
-	if(DoorClosed() && isClassEmpty()){
+	bool result=isClassEmpty();
+	if(DoorClosed() && result){
 		printf("door is closed and class is empty, no need to wait for students\n");
 		return false;
 	}
-	return isClassEmpty;
+	return result;
 }
 /**
  * The TA can finish his reception hour if there are no students, and the door is closed.
