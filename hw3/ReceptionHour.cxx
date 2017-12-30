@@ -27,6 +27,7 @@ maxStudents(max_waiting_students),numOfStudents(0),isDoorClosed(false),isQuestio
 	pthread_mutex_init(&numOfStudentLock,&mutex_attr);
 	pthread_mutex_init(&DoorLock,&mutex_attr);
 	pthread_mutex_init(&mapLock,&mutex_attr);
+	pthread_mutex_init(&tryToEnterClassLock,&mutex_attr);
 
 	pthread_mutex_init(&taAvailableForQuesiton,&mutex_attr);
 
@@ -97,9 +98,8 @@ void* ReceptionHour::allocateStudentStatus(StudentStatus status){
 pthread_t ReceptionHour::findStudent(unsigned int id){
 	pthread_t studentThread;
 	{
-		LocalMutex LocalMutex(mapLock);
+		LocalMutex localMutex(mapLock);
 		printf("Finsihed student method was called with id=[%d] . trying to collect his status (thread %d)\n",id,pthread_self());
-		studentThread=idToThread.find(id)->second;
 		std::unordered_map<int,pthread_t>::const_iterator findResult = idToThread.find(id);
 		if ( findResult == idToThread.end() ){
 				fprintf(stderr,"failed to find student id=%d\n",id);
@@ -122,20 +122,9 @@ StudentStatus ReceptionHour::finishStudent(unsigned int id) {
 	return status;
 }
 
-void ReceptionHour::closeTheDoor() {
-	LocalMutex localMutex(DoorLock);
-	printf("TA is closing the door (thread %d)\n",pthread_self());
-	isDoorClosed=true;
-}
 
-bool ReceptionHour::DoorClosed(){
-	bool result;
-	{
-		LocalMutex localMutex(DoorLock);
-		result=isDoorClosed;
-	}
-	return result;
-}
+
+
 bool ReceptionHour::isClassFull(){
 	bool result;
 	{
@@ -154,39 +143,60 @@ void ReceptionHour::IncNumOfStudents(){
  * try to enter the room
  * */
 StudentStatus ReceptionHour::waitForTeacher() {
-	
 	StudentStatus status = StudentStatus::ENTERED;
-	if(DoorClosed()){//if the door is closed student leaves
-		status = StudentStatus::LEFT_BECAUSE_DOOR_CLOSED;
-		printf("Student can't enter door is closed (thread %d)\n",pthread_self());
-		return status;					
-	}else if(isClassFull()){//if the room is full student leaves
-		status=StudentStatus::LEFT_BECAUSE_NO_SEAT;
-		printf("Student can't enter room is full (thread %d)\n",pthread_self());
-		return status; 					
-	}
-	{// we now try to enter by sending signal to waitForStudent
-		LocalMutex localMutex(studentArriveLock);
-		IncNumOfStudents();
-		printf("Student trying to signal is arrival,now num of student is %d (thread %d)\n",numOfStudents,pthread_self());
-		pthread_cond_signal(&studentArrived);
+	{
+		LocalMutex enterMutex(tryToEnterClassLock);
+		if(DoorClosed()){//if the door is closed student leaves
+			status = StudentStatus::LEFT_BECAUSE_DOOR_CLOSED;
+			printf("Student can't enter door is closed (thread %d)\n",pthread_self());
+			return status;					
+		}else if(isClassFull()){//if the room is full student leaves
+			status=StudentStatus::LEFT_BECAUSE_NO_SEAT;
+			printf("Student can't enter room is full (thread %d)\n",pthread_self());
+			return status; 					
+		}
+		{// we now try to enter by sending signal to waitForStudent
+			LocalMutex localMutex(studentArriveLock);
+			IncNumOfStudents();
+			printf("Student trying to signal is arrival,now num of student is %d (thread %d)\n",numOfStudents,pthread_self());
+			pthread_cond_signal(&studentArrived);
+		}
 	}
 	return status; 
 }
 
+bool ReceptionHour::DoorClosed(){
+	bool result;
+	{
+		LocalMutex localMutex(DoorLock);
+		result=isDoorClosed;
+		if(isDoorClosed){
+			printf("door is closed, can't accept students \n");
+		}else{
+			printf("door is opened, can accept students \n");
+		}
+	}
+	return result;
+}
+
+void ReceptionHour::closeTheDoor() {
+	LocalMutex localMutex(DoorLock);
+	isDoorClosed=true;
+	printf("TA closed the door (thread %d)\n",pthread_self());
+}
 
 bool ReceptionHour::canAcceptStudents(){
+	
+
 	bool result;
 	{
 		LocalMutex localMutex(numOfStudentLock);
-		result= (0 == numOfStudents);
-	}
-	{
-		LocalMutex localMutex(DoorLock);
-		result &= (!isDoorClosed);
+		result = (0 == numOfStudents);
+		printf("num of students:%d\n",numOfStudents);
 		if(result)
 			printf("TA has no students in the room, and door is open (need to go to sleep).\n");
 	}
+
 	return result;
 }
 /**
@@ -195,14 +205,15 @@ bool ReceptionHour::canAcceptStudents(){
 bool ReceptionHour::canFinishReceptionHour(){
 	bool result;
 	{
-		LocalMutex localMutex(numOfStudentLock);
-		printf("TA is waiting for student (thread %d)\n",pthread_self());
-		result= (0 == numOfStudents);
-	}
-	{
-		LocalMutex localMutex(DoorLock);
-		result &= (isDoorClosed);
-		printf("TA finsihed his work (thread %d)\n",pthread_self());
+		LocalMutex lock(DoorLock);
+		result=isDoorClosed;
+		{
+			LocalMutex localMutex(numOfStudentLock);
+			printf("TA is waiting for student (thread %d)\n",pthread_self());
+			result &= (0 == numOfStudents);
+			if(result)
+				printf("TA finsihed his work (thread %d)\n",pthread_self());
+		}
 	}
 	return result;
 }
@@ -217,11 +228,14 @@ bool ReceptionHour::waitForStudent() {
 	}
 	{//ta should conditionaly wait until a student arrive
 		LocalMutex localMutex(studentArriveLock);
-		printf("TA is tying to be blocked until a student arrive or door is closed (thread %d)\n",pthread_self());
+		printf("TA is tying to be blocked until a student arrive and door is open (thread %d)\n",pthread_self());
 		while(canAcceptStudents()){
 			pthread_cond_wait(&studentArrived,&studentArriveLock);
 		}
 		printf("TA is no longer blocked, because there are students in the class or the door is closed (thread %d)\n",pthread_self());
+	}
+	if(canFinishReceptionHour()){
+		return false;
 	}
 	return true; 
 }
@@ -253,6 +267,7 @@ void ReceptionHour::askQuestion() {
 void ReceptionHour::DecNumofStudents(){
 	LocalMutex localMutex(numOfStudentLock);
 	--numOfStudents;
+	printf("Student exited the room (he got an answer :). now num of students is:[%d] ) (thread %d)\n",pthread_self(),numOfStudents);
 }
 
 void ReceptionHour::giveAnswer() {
@@ -275,7 +290,7 @@ void ReceptionHour::waitForAnswer() {
 		pthread_cond_wait(&taAnswered,&taAnsweredLock);
 	}
 	isQuestionAnswered=false;
-	printf("Student IS NO LONGET BLOCKED, he got his answer from TA. now other student can come along[unlocking taAvailableForQuesiton] (thread %d)\n",pthread_self());
+	printf("Student IS NO LONGER BLOCKED, he got his answer from TA. now other student can come along[unlocking taAvailableForQuesiton] (thread %d)\n",pthread_self());
 	//we unlock because the ta gave the answer
 	pthread_mutex_unlock(&taAvailableForQuesiton); //TODO
 	
@@ -324,6 +339,10 @@ ReceptionHour::~ReceptionHour() {
 	fail=pthread_mutex_destroy(&numOfStudentLock);
 	if(fail){
 		fprintf(stderr,"failed to desotroy numOfStudentLock\n");
+	}
+	fail=pthread_mutex_destroy(&tryToEnterClassLock);
+	if(fail){
+		fprintf(stderr,"failed to desotroy tryToEnterClassLock\n");
 	}
 	fail=pthread_mutexattr_destroy(&mutex_attr);
 	if(fail){

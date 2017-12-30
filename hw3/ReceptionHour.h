@@ -69,6 +69,8 @@ protected:
 	pthread_cond_t taAnswered;
 	pthread_mutex_t taAnsweredLock;
 
+	pthread_mutex_t tryToEnterClassLock;
+
 	pthread_t taThread;
 	pthread_mutexattr_t mutex_attr;
 
