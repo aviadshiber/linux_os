@@ -188,16 +188,19 @@ void ReceptionHour::closeTheDoor() {
 bool ReceptionHour::canAcceptStudents(){
 	
 
-	bool result;
+	bool isClassEmpty;
 	{
 		LocalMutex localMutex(numOfStudentLock);
-		result = (0 == numOfStudents);
+		isClassEmpty = (0 == numOfStudents);
 		printf("num of students:%d\n",numOfStudents);
-		if(result)
+		if(isClassEmpty)
 			printf("TA has no students in the room, and door is open (need to go to sleep).\n");
 	}
+	if(DoorClosed() && isClassEmpty){
+		return false;
+	}
 
-	return result;
+	return isClassEmpty;
 }
 /**
  * The TA can finish his reception hour if there are no students, and the door is closed.
