@@ -99,7 +99,7 @@ pthread_t ReceptionHour::findStudent(unsigned int id){
 	{
 		LocalMutex LocalMutex(mapLock);
 		printf("Finsihed student method was called with id=[%d] . trying to collect his status (thread %d)\n",id,pthread_self());
-		studentThread=idToThread.find(id)->second;
+		//studentThread=idToThread.find(id)->second;		//should this line be in a note?
 		std::unordered_map<int,pthread_t>::const_iterator findResult = idToThread.find(id);
 		if ( findResult == idToThread.end() ){
 				fprintf(stderr,"failed to find student id=%d\n",id);
