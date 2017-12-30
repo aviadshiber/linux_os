@@ -88,6 +88,7 @@ bool needToWaitForStudents();
 bool canFinishReceptionHour();
 bool DoorClosed();
 bool isClassFull();
+bool isClassEmpty();
 
 
 

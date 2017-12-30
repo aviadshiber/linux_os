@@ -127,9 +127,6 @@ StudentStatus ReceptionHour::finishStudent(unsigned int id) {
 	return status;
 }
 
-
-
-
 bool ReceptionHour::isClassFull(){
 	bool result;
 	{
@@ -190,18 +187,21 @@ void ReceptionHour::closeTheDoor() {
 	printf("TA closed the door (thread %d)\n",pthread_self());
 }
 
-bool ReceptionHour::needToWaitForStudents(){
-	
-	
-	bool isClassEmpty;
-	{
+bool ReceptionHour::isClassEmpty(){
+	bool result;
+	{ //check if number of student is zero
 		LocalMutex localMutex(numOfStudentLock);
-		isClassEmpty = (0 == numOfStudents);
+		result = (0 == numOfStudents);
 		printf("num of students:%d\n",numOfStudents);
-		if(isClassEmpty)
+		if(result)
 			printf("TA has no students in the room (need to go to sleep).\n");
 	}
-	if(DoorClosed() && isClassEmpty){
+	return result;
+}
+
+bool ReceptionHour::needToWaitForStudents(){
+
+	if(DoorClosed() && isClassEmpty()){
 		printf("door is closed and class is empty, no need to wait for students\n");
 		return false;
 	}
@@ -211,15 +211,7 @@ bool ReceptionHour::needToWaitForStudents(){
  * The TA can finish his reception hour if there are no students, and the door is closed.
  * */
 bool ReceptionHour::canFinishReceptionHour(){
-	bool result=DoorClosed();
-	{
-		LocalMutex localMutex(numOfStudentLock);
-		printf("TA is waiting for student (thread %d)\n",pthread_self());
-		result &= (0 == numOfStudents);
-		if(result)
-			printf("TA finsihed his work (thread %d)\n",pthread_self());
-	}
-	return result;
+	return DoorClosed() && isClassEmpty();
 }
 
 /**
@@ -282,9 +274,6 @@ void ReceptionHour::giveAnswer() {
 	pthread_cond_signal(&taAnswered);
 }
 
-
-
-
 void ReceptionHour::waitForAnswer() {
 	//conidion wait for TA to answer
 	LocalMutex localMutex(taAnsweredLock);
@@ -295,10 +284,9 @@ void ReceptionHour::waitForAnswer() {
 	isQuestionAnswered=false;
 	printf("Student IS NO LONGER BLOCKED, he got his answer from TA. now other student can come along[unlocking taAvailableForQuesiton] (thread %d)\n",pthread_self());
 	//we unlock because the ta gave the answer
-	pthread_mutex_unlock(&taAvailableForQuesiton); //TODO
+	pthread_mutex_unlock(&taAvailableForQuesiton);
 	
 }
-
 
 ReceptionHour::~ReceptionHour() {
 	//wait for ta to finish before we destory the world
