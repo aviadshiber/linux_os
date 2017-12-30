@@ -194,9 +194,10 @@ bool ReceptionHour::needToWaitForStudents(){
 		isClassEmpty = (0 == numOfStudents);
 		printf("num of students:%d\n",numOfStudents);
 		if(isClassEmpty)
-			printf("TA has no students in the room, and door is open (need to go to sleep).\n");
+			printf("TA has no students in the room (need to go to sleep).\n");
 	}
 	if(DoorClosed() && isClassEmpty){
+		printf("door is closed and class is empty, no need to wait for students\n");
 		return false;
 	}
 	return isClassEmpty;
@@ -205,17 +206,13 @@ bool ReceptionHour::needToWaitForStudents(){
  * The TA can finish his reception hour if there are no students, and the door is closed.
  * */
 bool ReceptionHour::canFinishReceptionHour(){
-	bool result;
+	bool result=DoorClosed();
 	{
-		LocalMutex lock(DoorLock);
-		result=isDoorClosed;
-		{
-			LocalMutex localMutex(numOfStudentLock);
-			printf("TA is waiting for student (thread %d)\n",pthread_self());
-			result &= (0 == numOfStudents);
-			if(result)
-				printf("TA finsihed his work (thread %d)\n",pthread_self());
-		}
+		LocalMutex localMutex(numOfStudentLock);
+		printf("TA is waiting for student (thread %d)\n",pthread_self());
+		result &= (0 == numOfStudents);
+		if(result)
+			printf("TA finsihed his work (thread %d)\n",pthread_self());
 	}
 	return result;
 }
@@ -225,20 +222,17 @@ bool ReceptionHour::canFinishReceptionHour(){
   if the door is closed or the room is full return false. otherwise true.
 */
 bool ReceptionHour::waitForStudent() {
+
+	//ta should conditionaly wait until a student arrive
+	LocalMutex localMutex(studentArriveLock);
+	printf("TA is tying to be blocked until a student arrive or door is closed (thread %d)\n",pthread_self());
+	while(needToWaitForStudents()){
+		pthread_cond_wait(&studentArrived,&studentArriveLock);
+	}
 	if(canFinishReceptionHour()){
 		return false;
 	}
-	{//ta should conditionaly wait until a student arrive
-		LocalMutex localMutex(studentArriveLock);
-		printf("TA is tying to be blocked until a student arrive and door is open (thread %d)\n",pthread_self());
-		while(needToWaitForStudents()){
-			pthread_cond_wait(&studentArrived,&studentArriveLock);
-		}
-		if(canFinishReceptionHour()){
-			return false;
-		}
-		printf("TA is no longer blocked, because there are students in the class or the door is closed (thread %d)\n",pthread_self());
-	}
+	
 	return true; 
 }
 
