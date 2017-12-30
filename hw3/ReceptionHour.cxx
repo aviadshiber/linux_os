@@ -226,18 +226,18 @@ bool ReceptionHour::canFinishReceptionHour(){
   if the door is closed or the room is full return false. otherwise true.
 */
 bool ReceptionHour::waitForStudent() {
-	if(canFinishReceptionHour()){
-		return false;
-	}
+	// if(canFinishReceptionHour()){			//we dont really need this func here
+	// 	return false;
+	// }
 	{//ta should conditionaly wait until a student arrive
 		LocalMutex localMutex(studentArriveLock);
 		printf("TA is tying to be blocked until a student arrive and door is open (thread %d)\n",pthread_self());
 		while(canAcceptStudents()){
 			pthread_cond_wait(&studentArrived,&studentArriveLock);
 		}
-		printf("TA is no longer blocked, because there are students in the class or the door is closed (thread %d)\n",pthread_self());
 	}
 	if(canFinishReceptionHour()){
+		printf("TA is no longer blocked, because there are students in the class or the door is closed (thread %d)\n",pthread_self());
 		return false;
 	}
 	return true; 
