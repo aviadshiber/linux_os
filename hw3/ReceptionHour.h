@@ -82,7 +82,7 @@ static void* allocateStudentStatus(StudentStatus status);
 pthread_t findStudent(unsigned int id);
 void IncNumOfStudents();
 void DecNumofStudents();
-bool canAcceptStudents();
+bool needToWaitForStudents();
 bool canFinishReceptionHour();
 bool DoorClosed();
 bool isClassFull();
