@@ -9,6 +9,9 @@ LocalMutex::~LocalMutex() {
 	pthread_mutex_unlock(&local_mutex);
 }
 
+bool ReceptionHour::getDoorState(){
+	return DoorClosed();
+}
 
 ReceptionHour::ReceptionHour(unsigned int max_waiting_students):
 maxStudents(max_waiting_students),numOfStudents(0),isDoorClosed(false),isQuestionAsked(false),isQuestionAnswered(false) {
@@ -37,15 +40,12 @@ maxStudents(max_waiting_students),numOfStudents(0),isDoorClosed(false),isQuestio
 }
 
 void* ReceptionHour::taFunction(void* obj){
-	ReceptionHour* ta=(ReceptionHour *)obj;
-	while(true){
-		if(!ta->waitForStudent()){
-			break;
-		}
-		ta->waitForQuestion();
-		ta->giveAnswer();
+	ReceptionHour* reception=(ReceptionHour *)obj;
+	while(reception->waitForStudent()){
+		reception->waitForQuestion();
+		reception->giveAnswer();
 	}
-
+	printf("taFunction will now exit\n");
 	return NULL;
 }
 
@@ -112,13 +112,18 @@ pthread_t ReceptionHour::findStudent(unsigned int id){
 	return studentThread;
 }
 
+void ReceptionHour::removeStudent(unsigned int id){
+	LocalMutex localMutex(mapLock);
+	idToThread.erase(id);
+}
+
 StudentStatus ReceptionHour::finishStudent(unsigned int id) {
 	pthread_t studentThread=findStudent(id);
 
 	StudentStatus status = collectStudentStatus(studentThread);
-
 	printf("Student %d that was collected with %d status (thread %d)\n",id,status,pthread_self());
-	
+	removeStudent(id);
+
 	return status;
 }
 
@@ -136,8 +141,8 @@ bool ReceptionHour::isClassFull(){
 
 void ReceptionHour::IncNumOfStudents(){
 	LocalMutex localMutex(numOfStudentLock);
-	printf("Student entered the room, and got a seat (thread %d)\n",pthread_self());
 	numOfStudents++;
+	printf("Student entered the room, and got a seat (thread %d)\n",pthread_self());
 }
 /**
  * try to enter the room
@@ -237,9 +242,11 @@ bool ReceptionHour::waitForStudent() {
 }
 
 void ReceptionHour::waitForQuestion() {
+
 	LocalMutex localMutex(questionAskedLock);
 	printf("TA is tying to be blocked untill he gets a question (thread %d)\n",pthread_self());
 	while(!isQuestionAsked){
+		
 		pthread_cond_wait(&questionAsked,&questionAskedLock);
 	}
 	printf("TA IS NO LONGER BLOCKED, he got a question (thread %d)\n",pthread_self());
@@ -263,7 +270,7 @@ void ReceptionHour::askQuestion() {
 void ReceptionHour::DecNumofStudents(){
 	LocalMutex localMutex(numOfStudentLock);
 	--numOfStudents;
-	printf("Student exited the room (he got an answer :). now num of students is:[%d] ) (thread %d)\n",pthread_self(),numOfStudents);
+	printf("Student exited the room (he got an answer :). now num of students is:[%d] ) (thread %d)\n",numOfStudents,pthread_self());
 }
 
 void ReceptionHour::giveAnswer() {
@@ -294,6 +301,8 @@ void ReceptionHour::waitForAnswer() {
 
 
 ReceptionHour::~ReceptionHour() {
+	//wait for ta to finish before we destory the world
+	pthread_join(taThread,NULL);
 	int fail=0;
 	fail=pthread_cond_destroy(&studentArrived);
 	if(fail){

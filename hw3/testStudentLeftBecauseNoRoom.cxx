@@ -28,7 +28,7 @@ int main() {
 	assert(left_because_no_seat_count == 1);
 
 	rh.closeTheDoor();
-
+    assert(rh.getDoorState()==true);
 	return 0;
 }
 

@@ -48,6 +48,7 @@ virtual	void giveAnswer();
 virtual	StudentStatus waitForTeacher();
 virtual	void askQuestion();
 virtual	void waitForAnswer();
+bool getDoorState();
 protected:
 	static void* taFunction(void* obj);
 	static void* studentFunction(void* obj);
@@ -80,12 +81,14 @@ private:
 static StudentStatus collectStudentStatus(pthread_t studentThread);
 static void* allocateStudentStatus(StudentStatus status);
 pthread_t findStudent(unsigned int id);
+void removeStudent(unsigned int id);
 void IncNumOfStudents();
 void DecNumofStudents();
 bool needToWaitForStudents();
 bool canFinishReceptionHour();
 bool DoorClosed();
 bool isClassFull();
+
 
 
 	// Remember: you can only use mutexes and condition variables!
