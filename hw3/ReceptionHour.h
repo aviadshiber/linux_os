@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <pthread.h>
+#include <stdexcept>
 
 // typedef pair<ReceptionHour*,int> studentArg;
 

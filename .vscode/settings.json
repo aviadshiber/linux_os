@@ -43,6 +43,9 @@
         "xlocinfo": "cpp",
         "xmemory": "cpp",
         "xmemory0": "cpp",
-        "xstddef": "cpp"
+        "xstddef": "cpp",
+        "functional": "cpp",
+        "memory": "cpp",
+        "xfunctional": "cpp"
     }
 }
