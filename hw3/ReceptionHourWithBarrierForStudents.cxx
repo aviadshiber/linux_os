@@ -2,9 +2,9 @@
 using namespace std;
 
 ReceptionHourWithBarrierForStudents::ReceptionHourWithBarrierForStudents(
-        unsigned int max_waiting_students)
+        unsigned int max_waiting_students,int inc)
 	: ReceptionHour(max_waiting_students) {
-        pthread_barrier_init(&barrier, NULL, max_waiting_students+1);
+        pthread_barrier_init(&barrier, NULL, max_waiting_students+inc);
 }
 
 ReceptionHourWithBarrierForStudents::~ReceptionHourWithBarrierForStudents() {

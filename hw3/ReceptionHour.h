@@ -90,6 +90,7 @@ bool canFinishReceptionHour();
 bool DoorClosed();
 bool isClassFull();
 bool isClassEmpty();
+void destoryMap();
 
 
 

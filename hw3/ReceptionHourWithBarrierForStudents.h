@@ -5,7 +5,7 @@
 
 class ReceptionHourWithBarrierForStudents: public ReceptionHour {
 public:
-    ReceptionHourWithBarrierForStudents(unsigned int max_waiting_students);
+    ReceptionHourWithBarrierForStudents(unsigned int max_waiting_students,int inc);
 	~ReceptionHourWithBarrierForStudents();
 
 	StudentStatus waitForTeacher() override;

@@ -40,7 +40,7 @@ bool exiting_with_no_finish_student_TEST() {
 bool moreThenMaxStudent() {
     ReceptionHour rh = ReceptionHour(MAX_STUDENTS);
     printf("\n       Creating %d Students and the max number of students is: %d\n", (MAX_STUDENTS + 1), MAX_STUDENTS );
-    int num_of_students = 3*MAX_STUDENTS + 0;
+    int num_of_students = 3*MAX_STUDENTS + 1000;
     for (int i = 0; i < num_of_students; i++) {
         rh.startStudent(i);
     }
