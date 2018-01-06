@@ -5,6 +5,7 @@
 #include <linux/vmalloc.h>
 #include <linux/list.h>
 #include <asm-i386/uaccess.h>
+
 #include <linux/fs.h> //for struct file_operations
 #include <asm/uaccess.h> //for copy_from_user()
 #include <linux/kernel.h> //for printk()
@@ -24,11 +25,12 @@ MODULE_LICENSE("GPL");
 			: "=m" (addr) \
 			: : "memory" ); \
     } while (0)
+
+
 // http://wiki.osdev.org/Interrupt_Descriptor_Table
 struct _descr { 
    uint16_t limit; // offset bits 0..15
    uint32_t address; // a code segment selector in GDT or LDT
-  
 
 } __attribute__((__packed__));
 
@@ -39,6 +41,7 @@ typedef struct idtGate {
 asm (
     "patched_system_call: \n\t"
 );
+
 int my_open(struct inode* inode, struct file* filp);
 int my_release(struct inode* inode, struct file* filp);
 ssize_t my_read_0(struct file *filp, char *buf, size_t count, loff_t *f_pos);
