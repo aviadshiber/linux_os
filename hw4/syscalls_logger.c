@@ -20,8 +20,7 @@ typedef enum { false, true } bool;
 #define MY_MODULE "syscalls_logger"
 #define get_higher_address(addr) ((addr >> 16)  &  0x0000FFFF)
 #define get_lower_address(addr) (addr &  0x0000FFFF)
-#define get_idt_entry(base,i)  (((idtGate *)base)[i])
-#define set_idt_entry(base,i,data) (get_idt_entry(base,i)=data)
+
 #define SYSCALL_INDEX 128
 #define store_idt(addr) \
 	do { \
@@ -61,9 +60,9 @@ typedef struct idtGate {
    uint16_t offset_2; // offset bits 16..31 (higher part)
 } idtGate;
 
-uint32_t get_address_from_idt(idtGate idt_gate){
-	uint32_t higher_addr= idt_gate.offset_2;
-	uint32_t lower_addr= idt_gate.offset_1;
+uint32_t get_address_from_idt(idtGate* idt_gate){
+	uint32_t higher_addr= idt_gate->offset_2;
+	uint32_t lower_addr= idt_gate->offset_1;
 	higher_addr<<=16;
 	return  higher_addr | lower_addr;
 }
@@ -127,31 +126,38 @@ struct file_operations fops0;
 uint32_t orig_syscall_addr;
 struct _descr idt_adress;
 idtGate idt_gate;
+
+idtGate* syscalls_interrupt;
 bool log_enabled;
 logger head;
 
-void update_idt_offset(idtGate idt_gate,uint32_t addr){
-	idt_gate.offset_2= get_higher_address(addr);
-	idt_gate.offset_1= get_lower_address(addr);
+void update_idt_offset(idtGate* idt_gate,uint32_t addr){
+	idt_gate->offset_2= get_higher_address(addr);
+	idt_gate->offset_1= get_lower_address(addr);
+}
+
+idtGate* hook_on(idtGate * interrupt_table,int interrupt_index,uint32_t func_to_be_hooked_addr){
+	idtGate* gate=interrupt_table+interrupt_index;
+	orig_syscall_addr=  get_address_from_idt(gate);
+	update_idt_offset(gate,func_to_be_hooked_addr);
+	return gate;
 }
 
 void add_log(int syscall_number){
-	printk("add log was called with syscall ");
 	if(!log_enabled) return;
-	logger *new_log=kmalloc(sizeof(*new_log),GFP_KERNEL);
-	new_log->syscall_num=syscall_number;
-	new_log->jiffies=jiffies;
-	new_log->time_slice=current->time_slice;
+	//add log logic will be here
+
+	// logger *new_log=kmalloc(sizeof(*new_log),GFP_KERNEL);
+	// new_log->syscall_num=syscall_number;
+	// new_log->jiffies=jiffies;
+	// new_log->time_slice=current->time_slice;
 	//list_add(new_log,head);
 
-
-//add log logic will be here
-	
-	//printk("add log was called with syscall num %d",syscall_number);
+	//
 }
 
 int init_module(void) {
-	
+	idtGate* interrupt_table;
 	major = register_chrdev(0, MY_MODULE, &fops0); 
 	if (major < 0){
 		printk(KERN_ALERT "Registering char device failed with %d\n", major);
@@ -159,18 +165,10 @@ int init_module(void) {
 	}
 	log_enabled=0;
 //	INIT_LIST_HEAD(&head.list);
-	printk("limit=%u ,base=%u, \n",(int)idt_adress.size,(unsigned int)idt_adress.base);
+
 	store_idt(idt_adress);
-
-	printk("limit=%u ,base=%u, \n",(int)idt_adress.size,(int)idt_adress.base);
-
-	idt_gate= get_idt_entry(idt_adress.base,SYSCALL_INDEX);
-	orig_syscall_addr=  get_address_from_idt(idt_gate);
-	printk("orig addr:%u\n",orig_syscall_addr);
-	update_idt_offset(idt_gate,(uint32_t)patched_system_call);
-	set_idt_entry(idt_adress.base,SYSCALL_INDEX,idt_gate);
-
-
+	interrupt_table=(idtGate*)idt_adress.base;
+	syscalls_interrupt=hook_on(interrupt_table,SYSCALL_INDEX,(uint32_t)&patched_system_call);
 	//printk("offset_1=%d ,selector=%d, zero=%d,type_attr=%d,offest2=%d \n",desc->offset_1,desc->selector,desc->zero,desc->type_attr,desc->offset_2);
 
     return 0;
@@ -182,8 +180,7 @@ void cleanup_module(void) {
 		printk(KERN_ALERT "Error in unregister_chrdev: %d\n", ret);
 	}
 	//reverting syscall back to original
-	update_idt_offset(idt_gate,orig_syscall_addr);
-	set_idt_entry(idt_adress.base,SYSCALL_INDEX,idt_gate);
+	update_idt_offset(syscalls_interrupt,orig_syscall_addr);
 
 }
 
