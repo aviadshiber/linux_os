@@ -20,7 +20,7 @@ typedef enum { false, true } bool;
 #define MY_MODULE "syscalls_logger"
 #define get_higher_address(addr) ((addr >> 16)  &  0x0000FFFF)
 #define get_lower_address(addr) (addr &  0x0000FFFF)
-
+#define MAX_LOGGING_NUM 1024
 #define SYSCALL_INDEX 128
 #define store_idt(addr) \
 	do { \
@@ -40,7 +40,7 @@ typedef enum { false, true } bool;
 	"pushl %ecx;\t\n" \
 	"pushl %ebx;\t\n" 
 
-	#define RESTORE_ALL \
+#define RESTORE_ALL \
 	"popl %ebx;\t\n" \
 	"popl %ecx;\t\n" \
 	"popl %edx;\t\n" \
@@ -117,9 +117,8 @@ int time_slice;
 
 typedef struct proc{
 	pid_t pid;
-	int fd;
 	int size;
-	logger logs[1024];
+	logger logs[MAX_LOGGING_NUM];
 	list_t list;
 } proc_list;
 
@@ -131,11 +130,9 @@ int major;
 struct file_operations fops0;
 uint32_t orig_syscall_addr;
 struct _descr idt_adress;
-idtGate idt_gate;
-
 idtGate* syscalls_interrupt;
 bool log_enabled;
-logger head;
+struct list_head head;
 
 void update_idt_offset(idtGate* idt_gate,uint32_t addr){
 	idt_gate->offset_2= get_higher_address(addr);
@@ -148,18 +145,32 @@ idtGate* hook_on(idtGate * interrupt_table,int interrupt_index,uint32_t func_to_
 	update_idt_offset(gate,func_to_be_hooked_addr);
 	return gate;
 }
+proc_list* find_proc(pid_t pid){
+	list_t *pos;
+	list_for_each(pos,&head){
+		if(list_entry(pos, proc_list,list)->pid==pid){
+			return ((proc_list *)list_entry(pos, proc_list,list));
+		}
+	}
+	return NULL;
+}
+
 
 void add_log(int syscall_number){
 	if(!log_enabled) return;
 	//add log logic will be here
+	//find the process in linked list
+	proc_list* proc=find_proc(current->pid);
+	if(NULL==proc){ //we could not find thr process, so we need to create it
+		proc=kmalloc(sizeof(*proc),GFP_KERNEL);
+		if(!proc) return;
+		list_add(&proc->list,&head);
+	}
+	if(MAX_LOGGING_NUM-1==proc->size) return;
 
-	// logger *new_log=kmalloc(sizeof(*new_log),GFP_KERNEL);
-	// new_log->syscall_num=syscall_number;
-	// new_log->jiffies=jiffies;
-	// new_log->time_slice=current->time_slice;
-	//list_add(new_log,head);
-
-	//
+	logger new_log = { .syscall_num=syscall_number, .jiffies=jiffies , .time_slice=current->time_slice  }
+	proc->logger[proc->size++]=new_log;
+	
 }
 
 int init_module(void) {
@@ -170,7 +181,7 @@ int init_module(void) {
 		return major;
 	}
 	log_enabled=0;
-//	INIT_LIST_HEAD(&head.list);
+	LIST_HEAD_INIT(head.list);
 
 	store_idt(idt_adress);
 	interrupt_table=(idtGate*)idt_adress.base;
