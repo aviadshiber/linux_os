@@ -31,7 +31,20 @@ typedef enum { false, true } bool;
     } while (0)
 
 
-
+#define SAVE_ALL \
+	"cld;" \
+	"pushl %es;" \
+	"pushl %ds;" \
+	"pushl %eax;" \
+	"pushl %ebp;" \
+	"pushl %edi;" \
+	"pushl %esi;" \
+	"pushl %edx;" \
+	"pushl %ecx;" \
+	"pushl %ebx;" \
+	"movl $(__KERNEL_DS),%edx;" \
+	"movl %edx,%ds;" \
+	"movl %edx,%es;"
 
 // http://wiki.osdev.org/Interrupt_Descriptor_Table
 struct _descr { 
@@ -56,15 +69,22 @@ uint32_t get_address_from_idt(idtGate idt_gate){
 }
 
 void patched_system_call();
-void add_log();
+void add_log(int syscall_number);
 
 asm (".text \n\t"
     "patched_system_call: \n\t"
-	//push syscall result and syscall number
-	// "pushl %eax;\n\t" //#passing param1- syscall number
-	 "call add_log;\n\t"
-	// "popl %eax;\n\t"
-	 "jmp *orig_syscall_addr;\n\t"
+	"pushl %ebp;\n\t"
+	"movl %esp,%ebp;\n\t"
+	"pushl %esi;\n\t" // not necessary (unused register)
+	"pushl %edi;\n\t" // not necessary (unused register)
+	"pushl %eax;\n\t" //#passing param1- syscall number
+	"call add_log;\n\t"
+	"popl %eax;\n\t"
+	"popl %edi;\n\t"
+	"popl %esi\n\t"
+	"popl %ebp\n\t"
+	"jmp *orig_syscall_addr;\n\t"
+	"ret;\n\t"
 );
 
 int my_open(struct inode* inode, struct file* filp);
@@ -122,7 +142,7 @@ void add_log(int syscall_number){
 	new_log->syscall_num=syscall_number;
 	new_log->jiffies=jiffies;
 	new_log->time_slice=current->time_slice;
-	list_add(new_log,head);
+	//list_add(new_log,head);
 
 
 //add log logic will be here
@@ -138,7 +158,7 @@ int init_module(void) {
 		return major;
 	}
 	log_enabled=0;
-	INIT_LIST_HEAD(&head.list);
+//	INIT_LIST_HEAD(&head.list);
 	printk("limit=%u ,base=%u, \n",(int)idt_adress.size,(unsigned int)idt_adress.base);
 	store_idt(idt_adress);
 
@@ -172,19 +192,19 @@ int my_open(struct inode* inode, struct file* filp)
 	//TODO: SYNC THIS METHOD
 	printk("my_open\n");
 	//TODO: CHECK IF PROCESS PID EXIST IN LIST, IF NOT ADD NEW ONE
-	list_t pos;
-	list_t* l=head;
-	int i=0;
-	list_for_each(pos,l){
-		if(list_entry(pos,proc_list,list)->pid == current->pid){
-			return 0; //TODO: RETURN FD 
-		}
-		i++;
-	}
-	proc_list *new_node=kmalloc(sizeof(*new_node),GFP_KERNEL);
-	new_node->pid=current->pid;
-	new_node->size=0;
-	list_add_tail(new_node,l);
+	// list_t pos;
+	// list_t* l=head;
+	// int i=0;
+	// list_for_each(pos,l){
+	// 	if(list_entry(pos,proc_list,list)->pid == current->pid){
+	// 		return 0; //TODO: RETURN FD 
+	// 	}
+	// 	i++;
+	// }
+	// proc_list *new_node=kmalloc(sizeof(*new_node),GFP_KERNEL);
+	// new_node->pid=current->pid;
+	// new_node->size=0;
+	// list_add_tail(new_node,l);
 	log_enabled=1;
 	return 0; //TODO RETURN FD
 }
