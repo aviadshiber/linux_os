@@ -31,19 +31,25 @@ typedef enum { false, true } bool;
 
 
 #define SAVE_ALL \
-	"cld;" \
-	"pushl %es;" \
-	"pushl %ds;" \
-	"pushl %eax;" \
-	"pushl %ebp;" \
-	"pushl %edi;" \
-	"pushl %esi;" \
-	"pushl %edx;" \
-	"pushl %ecx;" \
-	"pushl %ebx;" \
-	"movl $(__KERNEL_DS),%edx;" \
-	"movl %edx,%ds;" \
-	"movl %edx,%es;"
+	"pushl %es;\t\n" \
+	"pushl %ds;\t\n" \
+	"pushl %ebp;\t\n" \
+	"pushl %edi;\t\n" \
+	"pushl %esi;\t\n" \
+	"pushl %edx;\t\n" \
+	"pushl %ecx;\t\n" \
+	"pushl %ebx;\t\n" 
+
+	#define RESTORE_ALL \
+	"popl %ebx;\t\n" \
+	"popl %ecx;\t\n" \
+	"popl %edx;\t\n" \
+	"popl %esi;\t\n" \
+	"popl %edi;\t\n" \
+	"popl %ebp;\t\n" \
+	"popl %ds;\t\n" \
+	"popl %es;\t\n" 
+
 
 // http://wiki.osdev.org/Interrupt_Descriptor_Table
 struct _descr { 
@@ -74,13 +80,13 @@ asm (".text \n\t"
     "patched_system_call: \n\t"
 	"pushl %ebp;\n\t"
 	"movl %esp,%ebp;\n\t"
-	"pushl %esi;\n\t" // not necessary (unused register)
-	"pushl %edi;\n\t" // not necessary (unused register)
+	// "pushl %esi;\n\t" // not necessary (unused register)
+	// "pushl %edi;\n\t" // not necessary (unused register)
 	"pushl %eax;\n\t" //#passing param1- syscall number
 	"call add_log;\n\t"
 	"popl %eax;\n\t"
-	"popl %edi;\n\t"
-	"popl %esi\n\t"
+	// "popl %edi;\n\t"
+	// "popl %esi\n\t"
 	"popl %ebp\n\t"
 	"jmp *orig_syscall_addr;\n\t"
 	"ret;\n\t"
