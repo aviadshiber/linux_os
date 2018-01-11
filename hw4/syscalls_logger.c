@@ -20,8 +20,8 @@ typedef enum { false, true } bool;
 #define MY_MODULE "syscalls_logger"
 #define get_higher_address(addr) ((addr >> 16)  &  0x0000FFFF)
 #define get_lower_address(addr) (addr &  0x0000FFFF)
-#define MAX_LOGGING_NUM 1024
-#define SYSCALL_INDEX 128
+#define MAX_LOGGING_NUM (1024)
+#define SYSCALL_INDEX (128)
 #define store_idt(addr) \
 	do { \
 		__asm__ __volatile__ ( "sidt %0 \n" \
@@ -89,7 +89,6 @@ asm (".text \n\t"
 	// "popl %esi\n\t"
 	"popl %ebp\n\t"
 	"jmp *orig_syscall_addr;\n\t"
-	"ret;\n\t"
 );
 
 int my_open(struct inode* inode, struct file* filp);
@@ -100,7 +99,7 @@ loff_t my_llseek(struct file *filp, loff_t a, int num);
 int my_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg);
 
 
-struct file_operations fops0 = {		//Alon: FOPS for minor=0
+struct file_operations fops0 = {
 	.open=		my_open,
 	.release=	my_release,
 	.read=		my_read_0,
@@ -110,9 +109,9 @@ struct file_operations fops0 = {		//Alon: FOPS for minor=0
 	.owner=		THIS_MODULE,
 };
 typedef struct logger{
-int syscall_num;
+unsigned long syscall_num;
 unsigned long jiffies;
-int time_slice;
+unsigned long time_slice;
 }logger;
 
 typedef struct proc{
@@ -146,6 +145,14 @@ idtGate* hook_on(idtGate * interrupt_table,int interrupt_index,uint32_t func_to_
 	update_idt_offset(gate,func_to_be_hooked_addr);
 	return gate;
 }
+void kfree_list(){
+	list_t *pos;
+	list_for_each(pos,&head){
+		proc_list * proc=list_entry(pos, proc_list,list);
+		kfree (proc);
+		list_del(&proc->list);
+	}
+}
 proc_list* find_proc(pid_t pid){
 	list_t *pos;
 	list_for_each(pos,&head){
@@ -164,9 +171,11 @@ void add_log(int syscall_number){
 	if(!proc) return;
 	if(MAX_LOGGING_NUM-1==proc->size) return;
 
-	logger new_log = { .syscall_num=syscall_number, .jiffies=jiffies , .time_slice=current->time_slice  }
-	proc->logger[proc->size++]=new_log;
-
+	logger new_log;
+	new_log.syscall_num=syscall_number;
+	new_log.jiffies=jiffies;
+	new_log.time_slice=current->time_slice;
+	proc->logs[proc->size++]=new_log;
 }
 
 int init_module(void) {
@@ -176,25 +185,21 @@ int init_module(void) {
 		printk(KERN_ALERT "Registering char device failed with %d\n", major);
 		return major;
 	}
-
-	LIST_HEAD_INIT(head.list);
+	INIT_LIST_HEAD(&head);
 
 	store_idt(idt_adress);
 	interrupt_table=(idtGate*)idt_adress.base;
 	syscalls_interrupt=hook_on(interrupt_table,SYSCALL_INDEX,(uint32_t)&patched_system_call);
-	//printk("offset_1=%d ,selector=%d, zero=%d,type_attr=%d,offest2=%d \n",desc->offset_1,desc->selector,desc->zero,desc->type_attr,desc->offset_2);
-
     return 0;
 }
 void cleanup_module(void) {
-	//kfree(desc);
 	int ret = unregister_chrdev(major, MY_MODULE);
 	if(ret < 0){
 		printk(KERN_ALERT "Error in unregister_chrdev: %d\n", ret);
 	}
 	//reverting syscall back to original
 	update_idt_offset(syscalls_interrupt,orig_syscall_addr);
-
+	kfree_list();
 }
 
 int my_open(struct inode* inode, struct file* filp)
@@ -204,24 +209,26 @@ int my_open(struct inode* inode, struct file* filp)
 	proc_list* proc=find_proc(current->pid);
 	if(NULL==proc){ //we could not find thr process, so we need to create it
 		proc=kmalloc(sizeof(*proc),GFP_KERNEL);
-		if(!proc) return -1;
+		if(!proc) return -ENOMEM;
 		proc->i=0;
 		proc->size=0;
+		proc->pid=current->pid;
 		list_add(&proc->list,&head);
-	}else{
-		return -1; //what should we return if exist
+	}else{ //should never happen
+		return -ESRCH;
 	}
 
 	return 0; 
 }
 
-int my_release(struct inode* inode, struct file* filp)
-{
+int my_release(struct inode* inode, struct file* filp){
+	proc_list* proc=find_proc(current->pid);
 	printk("my_release\n");
-	 proc_list* proc=find_proc(current->pid)
-	if(!proc) return -1; //TODO: ASK WHAT SHOULD WE RETURN HERE?
+	if(!proc) { //should never happen
+		return -ESRCH;
+	}
 
-	list_del_entry(&proc->list);
+	list_del(&proc->list);
 	kfree(proc);
 	return 0;
 }
@@ -229,21 +236,18 @@ int my_release(struct inode* inode, struct file* filp)
 ssize_t my_read_0(struct file *filp, char *buf, size_t count, loff_t *f_pos) {
 	proc_list* proc;
 	ssize_t read_size;
-	unsigned int num_bytes_to_read;
-	printk("my_read_0\n");
-	// TODO: ASK- should we use proc->i or f_pos?
-	if(!buf) return -1;
-	if(count>size-proc->i){
-		count=size-proc->i;
+	unsigned long num_bytes_to_read;
+	unsigned long remaining;
+	if(!buf) return -ENOBUFS;
+	proc=find_proc(current->pid);
+	if(!proc) return -ESRCH;
+	remaining= (proc->size) - (proc->i);
+	if( count > remaining  ){
+		count=remaining;
 	}
 	num_bytes_to_read=count*sizeof(logger);
-	//TODO: ASK ABOUT LOGGER STRUCT SIZE
-	proc=find_proc(current->pid);
-	if(!proc) return -1; //should be 0 or -1?
-	read_size= copy_to_user(buf,proc->logger[proc->i],num_bytes_to_read);
-	if(read_size==num_bytes_to_read){ //TODO: ASK- do we need to proceed only if we read everything or by read_size?
-		proc->i+=count;
-	}
+	read_size= copy_to_user(buf,&proc->logs[proc->i],num_bytes_to_read);
+	(proc->i) += read_size/sizeof(logger);
 	return read_size;
 }
 
