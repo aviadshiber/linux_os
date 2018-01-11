@@ -117,7 +117,8 @@ int time_slice;
 
 typedef struct proc{
 	pid_t pid;
-	int size;
+	unsigned int size;
+	unsigned int i;
 	logger logs[MAX_LOGGING_NUM];
 	list_t list;
 } proc_list;
@@ -157,20 +158,15 @@ proc_list* find_proc(pid_t pid){
 
 
 void add_log(int syscall_number){
-	if(!log_enabled) return;
 	//add log logic will be here
 	//find the process in linked list
 	proc_list* proc=find_proc(current->pid);
-	if(NULL==proc){ //we could not find thr process, so we need to create it
-		proc=kmalloc(sizeof(*proc),GFP_KERNEL);
-		if(!proc) return;
-		list_add(&proc->list,&head);
-	}
+	if(!proc) return;
 	if(MAX_LOGGING_NUM-1==proc->size) return;
 
 	logger new_log = { .syscall_num=syscall_number, .jiffies=jiffies , .time_slice=current->time_slice  }
 	proc->logger[proc->size++]=new_log;
-	
+
 }
 
 int init_module(void) {
@@ -180,7 +176,7 @@ int init_module(void) {
 		printk(KERN_ALERT "Registering char device failed with %d\n", major);
 		return major;
 	}
-	log_enabled=0;
+
 	LIST_HEAD_INIT(head.list);
 
 	store_idt(idt_adress);
@@ -205,40 +201,57 @@ int my_open(struct inode* inode, struct file* filp)
 {
 	//TODO: SYNC THIS METHOD
 	printk("my_open\n");
-	//TODO: CHECK IF PROCESS PID EXIST IN LIST, IF NOT ADD NEW ONE
-	// list_t pos;
-	// list_t* l=head;
-	// int i=0;
-	// list_for_each(pos,l){
-	// 	if(list_entry(pos,proc_list,list)->pid == current->pid){
-	// 		return 0; //TODO: RETURN FD 
-	// 	}
-	// 	i++;
-	// }
-	// proc_list *new_node=kmalloc(sizeof(*new_node),GFP_KERNEL);
-	// new_node->pid=current->pid;
-	// new_node->size=0;
-	// list_add_tail(new_node,l);
-	log_enabled=1;
-	return 0; //TODO RETURN FD
+	proc_list* proc=find_proc(current->pid);
+	if(NULL==proc){ //we could not find thr process, so we need to create it
+		proc=kmalloc(sizeof(*proc),GFP_KERNEL);
+		if(!proc) return -1;
+		proc->i=0;
+		proc->size=0;
+		list_add(&proc->list,&head);
+	}else{
+		return -1; //what should we return if exist
+	}
+
+	return 0; 
 }
 
 int my_release(struct inode* inode, struct file* filp)
 {
 	printk("my_release\n");
+	 proc_list* proc=find_proc(current->pid)
+	if(!proc) return -1; //TODO: ASK WHAT SHOULD WE RETURN HERE?
+
+	list_del_entry(&proc->list);
+	kfree(proc);
 	return 0;
 }
 
 ssize_t my_read_0(struct file *filp, char *buf, size_t count, loff_t *f_pos) {
+	proc_list* proc;
+	ssize_t read_size;
+	unsigned int num_bytes_to_read;
 	printk("my_read_0\n");
-	return 0;
+	// TODO: ASK- should we use proc->i or f_pos?
+	if(!buf) return -1;
+	if(count>size-proc->i){
+		count=size-proc->i;
+	}
+	num_bytes_to_read=count*sizeof(logger);
+	//TODO: ASK ABOUT LOGGER STRUCT SIZE
+	proc=find_proc(current->pid);
+	if(!proc) return -1; //should be 0 or -1?
+	read_size= copy_to_user(buf,proc->logger[proc->i],num_bytes_to_read);
+	if(read_size==num_bytes_to_read){ //TODO: ASK- do we need to proceed only if we read everything or by read_size?
+		proc->i+=count;
+	}
+	return read_size;
 }
 
 
 
 ssize_t my_write_0(struct file *filp, const char *buf, size_t count, loff_t *f_pos) {
 	printk("my_write_0\n");
-	return 0;
+	return -ENOSYS;
 }
 
 
@@ -249,6 +262,6 @@ loff_t my_llseek(struct file *filp, loff_t a, int num) {
 
 int my_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg) {
 	printk("my_ioctl\n");
-	return 0;
+	return -ENOSYS;
 }
 
