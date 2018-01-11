@@ -2,7 +2,7 @@
 echo making module
 make -f Makefile
 echo "[*] Compiling the test"
-gcc -std=c99 main.c -g -o test
+gcc -std=c99 main.c -o test
 
 echo "[*] Installing the LKM"
 insmod syscalls_logger.o

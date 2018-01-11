@@ -78,16 +78,18 @@ void add_log(int syscall_number);
 
 asm (".text \n\t"
     "patched_system_call: \n\t"
-	"pushl %ebp;\n\t"
-	"movl %esp,%ebp;\n\t"
-	"pushl %esi;\n\t" // not necessary (unused register)
-	"pushl %edi;\n\t" // not necessary (unused register)
+	// "pushl %ebp;\n\t"
+	// "movl %esp,%ebp;\n\t"
+	// "pushl %esi;\n\t" // not necessary (unused register)
+	// "pushl %edi;\n\t" // not necessary (unused register)
+	SAVE_ALL
 	"pushl %eax;\n\t" //#passing param1- syscall number
 	"call add_log;\n\t"
 	"popl %eax;\n\t"
-	"popl %edi;\n\t"
-	"popl %esi\n\t"
-	"popl %ebp\n\t"
+	RESTORE_ALL
+	// "popl %edi;\n\t"
+	// "popl %esi\n\t"
+	// "popl %ebp\n\t"
 	"jmp *orig_syscall_addr;\n\t"
 );
 
@@ -150,8 +152,8 @@ void kfree_list(){
 	list_t *pos;
 	list_for_each(pos,&head){
 		proc_list * proc=list_entry(pos, proc_list,list);
-		kfree (proc);
 		list_del(&proc->list);
+		kfree (proc);
 	}
 }
 proc_list* find_proc(pid_t pid){
@@ -205,7 +207,6 @@ void cleanup_module(void) {
 
 int my_open(struct inode* inode, struct file* filp)
 {
-	//TODO: SYNC THIS METHOD
 	proc_list* proc=find_proc(current->pid);
 	if(NULL==proc){ //we could not find thr process, so we need to create it
 		proc=kmalloc(sizeof(*proc),GFP_KERNEL);
@@ -213,7 +214,7 @@ int my_open(struct inode* inode, struct file* filp)
 		proc->i=0;
 		proc->size=0;
 		proc->pid=current->pid;
-		list_add(&proc->list,&head);
+		list_add(&(proc->list),&head);
 	}
 	return 0; 
 }
@@ -230,7 +231,8 @@ int my_release(struct inode* inode, struct file* filp){
 
 ssize_t my_read_0(struct file *filp, char *buf, size_t count, loff_t *f_pos) {
 	proc_list* proc;
-	ssize_t read_size=0;
+	ssize_t unable_to_read_size=0;
+	unsigned long read_size=0;
 	unsigned long num_bytes_to_read;
 	unsigned long remaining;
 	if(!buf) return -ENOBUFS;
@@ -241,8 +243,9 @@ ssize_t my_read_0(struct file *filp, char *buf, size_t count, loff_t *f_pos) {
 		count=remaining;
 	}
 	num_bytes_to_read=count*sizeof(logger);
-	read_size= copy_to_user(buf,&proc->logs[proc->i],num_bytes_to_read);
-	(proc->i) += read_size/sizeof(logger);
+	unable_to_read_size=copy_to_user(buf,&proc->logs[proc->i],num_bytes_to_read);
+	read_size=(num_bytes_to_read-unable_to_read_size)/sizeof(logger);
+	(proc->i) += read_size;
 	return read_size;
 }
 
