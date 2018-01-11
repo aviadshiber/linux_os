@@ -80,13 +80,13 @@ asm (".text \n\t"
     "patched_system_call: \n\t"
 	"pushl %ebp;\n\t"
 	"movl %esp,%ebp;\n\t"
-	// "pushl %esi;\n\t" // not necessary (unused register)
-	// "pushl %edi;\n\t" // not necessary (unused register)
+	"pushl %esi;\n\t" // not necessary (unused register)
+	"pushl %edi;\n\t" // not necessary (unused register)
 	"pushl %eax;\n\t" //#passing param1- syscall number
 	"call add_log;\n\t"
 	"popl %eax;\n\t"
-	// "popl %edi;\n\t"
-	// "popl %esi\n\t"
+	"popl %edi;\n\t"
+	"popl %esi\n\t"
 	"popl %ebp\n\t"
 	"jmp *orig_syscall_addr;\n\t"
 );
@@ -134,6 +134,7 @@ idtGate* syscalls_interrupt;
 bool log_enabled;
 struct list_head head;
 
+
 void update_idt_offset(idtGate* idt_gate,uint32_t addr){
 	idt_gate->offset_2= get_higher_address(addr);
 	idt_gate->offset_1= get_lower_address(addr);
@@ -167,6 +168,7 @@ proc_list* find_proc(pid_t pid){
 void add_log(int syscall_number){
 	//add log logic will be here
 	//find the process in linked list
+
 	proc_list* proc=find_proc(current->pid);
 	if(!proc) return;
 	if(MAX_LOGGING_NUM-1==proc->size) return;
@@ -186,7 +188,6 @@ int init_module(void) {
 		return major;
 	}
 	INIT_LIST_HEAD(&head);
-
 	store_idt(idt_adress);
 	interrupt_table=(idtGate*)idt_adress.base;
 	syscalls_interrupt=hook_on(interrupt_table,SYSCALL_INDEX,(uint32_t)&patched_system_call);
@@ -205,7 +206,6 @@ void cleanup_module(void) {
 int my_open(struct inode* inode, struct file* filp)
 {
 	//TODO: SYNC THIS METHOD
-	printk("my_open\n");
 	proc_list* proc=find_proc(current->pid);
 	if(NULL==proc){ //we could not find thr process, so we need to create it
 		proc=kmalloc(sizeof(*proc),GFP_KERNEL);
@@ -214,20 +214,15 @@ int my_open(struct inode* inode, struct file* filp)
 		proc->size=0;
 		proc->pid=current->pid;
 		list_add(&proc->list,&head);
-	}else{ //should never happen
-		return -ESRCH;
 	}
-
 	return 0; 
 }
 
 int my_release(struct inode* inode, struct file* filp){
 	proc_list* proc=find_proc(current->pid);
-	printk("my_release\n");
 	if(!proc) { //should never happen
 		return -ESRCH;
 	}
-
 	list_del(&proc->list);
 	kfree(proc);
 	return 0;
@@ -235,7 +230,7 @@ int my_release(struct inode* inode, struct file* filp){
 
 ssize_t my_read_0(struct file *filp, char *buf, size_t count, loff_t *f_pos) {
 	proc_list* proc;
-	ssize_t read_size;
+	ssize_t read_size=0;
 	unsigned long num_bytes_to_read;
 	unsigned long remaining;
 	if(!buf) return -ENOBUFS;
@@ -254,18 +249,15 @@ ssize_t my_read_0(struct file *filp, char *buf, size_t count, loff_t *f_pos) {
 
 
 ssize_t my_write_0(struct file *filp, const char *buf, size_t count, loff_t *f_pos) {
-	printk("my_write_0\n");
 	return -ENOSYS;
 }
 
 
 loff_t my_llseek(struct file *filp, loff_t a, int num) {
-	printk("my_llseek\n");
 	return -ENOSYS;
 }
 
 int my_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg) {
-	printk("my_ioctl\n");
 	return -ENOSYS;
 }
 
