@@ -1,0 +1,693 @@
+	.file	"syscalls_logger.c"
+	.section	.modinfo,"a",@progbits
+	.align 32
+	.type	__module_kernel_version,@object
+	.size	__module_kernel_version,31
+__module_kernel_version:
+	.string	"kernel_version=2.4.18-14custom"
+	.type	__module_license,@object
+	.size	__module_license,12
+__module_license:
+	.string	"license=GPL"
+	.text
+	.align 2
+.globl get_address_from_idt
+	.type	get_address_from_idt,@function
+get_address_from_idt:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	movl	8(%ebp), %eax
+	movzwl	6(%eax), %eax
+	movl	%eax, -4(%ebp)
+	movl	8(%ebp), %eax
+	movzwl	(%eax), %eax
+	movl	%eax, -8(%ebp)
+	leal	-4(%ebp), %eax
+	sall	$16, (%eax)
+	movl	-8(%ebp), %eax
+	orl	-4(%ebp), %eax
+	leave
+	ret
+.Lfe1:
+	.size	get_address_from_idt,.Lfe1-get_address_from_idt
+#APP
+	.text
+	patched_system_call:
+	cli;
+	pushl %es;											
+pushl %ds;											
+pushl %ebp;										
+pushl %edi;										
+pushl %esi;										
+pushl %edx;										
+pushl %ecx;										
+pushl %ebx;										
+pushl %eax;
+	call add_log;
+	popl %eax;
+	popl %ebx;											
+popl %ecx;											
+popl %edx;											
+popl %esi;											
+popl %edi;											
+popl %ebp;											
+popl %ds;											
+popl %es;											
+jmp *orig_syscall_addr;
+	sti;
+	
+#NO_APP
+.globl fops0
+	.data
+	.align 32
+	.type	fops0,@object
+	.size	fops0,72
+fops0:
+	.long	__this_module
+	.long	my_llseek
+	.long	my_read_0
+	.long	my_write_0
+	.zero	8
+	.long	my_ioctl
+	.zero	4
+	.long	my_open
+	.zero	4
+	.long	my_release
+	.zero	28
+	.text
+	.align 2
+.globl update_idt_offset
+	.type	update_idt_offset,@function
+update_idt_offset:
+	pushl	%ebp
+	movl	%esp, %ebp
+	movl	8(%ebp), %edx
+	movl	12(%ebp), %eax
+	shrl	$16, %eax
+	movw	%ax, 6(%edx)
+	movl	8(%ebp), %edx
+	movl	12(%ebp), %eax
+	movw	%ax, (%edx)
+	leave
+	ret
+.Lfe2:
+	.size	update_idt_offset,.Lfe2-update_idt_offset
+	.align 2
+.globl hook_on
+	.type	hook_on,@function
+hook_on:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	movl	12(%ebp), %eax
+	sall	$3, %eax
+	addl	8(%ebp), %eax
+	movl	%eax, -4(%ebp)
+	subl	$12, %esp
+	pushl	-4(%ebp)
+	call	get_address_from_idt
+	addl	$16, %esp
+	movl	%eax, orig_syscall_addr
+	subl	$8, %esp
+	pushl	16(%ebp)
+	pushl	-4(%ebp)
+	call	update_idt_offset
+	addl	$16, %esp
+	movl	-4(%ebp), %eax
+	leave
+	ret
+.Lfe3:
+	.size	hook_on,.Lfe3-hook_on
+	.align 2
+.globl kfree_list
+	.type	kfree_list,@function
+kfree_list:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	movl	head, %eax
+	movl	%eax, -4(%ebp)
+	subl	$12, %esp
+	movl	-4(%ebp), %eax
+	pushl	(%eax)
+	call	prefetch
+	addl	$16, %esp
+.L610:
+	cmpl	$head, -4(%ebp)
+	jne	.L613
+	jmp	.L609
+.L613:
+	movl	-4(%ebp), %eax
+	subl	$12300, %eax
+	movl	%eax, -8(%ebp)
+	subl	$12, %esp
+	movl	-8(%ebp), %eax
+	addl	$12300, %eax
+	pushl	%eax
+	call	list_del
+	addl	$16, %esp
+	subl	$12, %esp
+	pushl	-8(%ebp)
+	call	kfree
+	addl	$16, %esp
+	movl	-4(%ebp), %eax
+	movl	(%eax), %eax
+	movl	%eax, -4(%ebp)
+	subl	$12, %esp
+	movl	-4(%ebp), %eax
+	pushl	(%eax)
+	call	prefetch
+	addl	$16, %esp
+	jmp	.L610
+.L609:
+	leave
+	ret
+.Lfe4:
+	.size	kfree_list,.Lfe4-kfree_list
+	.align 2
+.globl find_proc
+	.type	find_proc,@function
+find_proc:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	movl	head, %eax
+	movl	%eax, -4(%ebp)
+	subl	$12, %esp
+	movl	-4(%ebp), %eax
+	pushl	(%eax)
+	call	prefetch
+	addl	$16, %esp
+.L615:
+	cmpl	$head, -4(%ebp)
+	jne	.L618
+	jmp	.L616
+.L618:
+	movl	-4(%ebp), %eax
+	subl	$12300, %eax
+	movl	(%eax), %eax
+	cmpl	8(%ebp), %eax
+	jne	.L617
+	movl	-4(%ebp), %eax
+	subl	$12300, %eax
+	movl	%eax, -8(%ebp)
+	jmp	.L614
+.L617:
+	movl	-4(%ebp), %eax
+	movl	(%eax), %eax
+	movl	%eax, -4(%ebp)
+	subl	$12, %esp
+	movl	-4(%ebp), %eax
+	pushl	(%eax)
+	call	prefetch
+	addl	$16, %esp
+	jmp	.L615
+.L616:
+	movl	$0, -8(%ebp)
+.L614:
+	movl	-8(%ebp), %eax
+	leave
+	ret
+.Lfe5:
+	.size	find_proc,.Lfe5-find_proc
+	.align 2
+.globl test2_function
+	.type	test2_function,@function
+test2_function:
+	pushl	%ebp
+	movl	%esp, %ebp
+	movl	$5, temp
+	leave
+	ret
+.Lfe6:
+	.size	test2_function,.Lfe6-test2_function
+	.align 2
+.globl test_function
+	.type	test_function,@function
+test_function:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	call	test2_function
+	leave
+	ret
+.Lfe7:
+	.size	test_function,.Lfe7-test_function
+	.align 2
+.globl add_log
+	.type	add_log,@function
+add_log:
+	pushl	%ebp
+	movl	%esp, %ebp
+	pushl	%ebx
+	subl	$36, %esp
+	subl	$12, %esp
+	subl	$4, %esp
+	call	get_current
+	addl	$4, %esp
+	pushl	120(%eax)
+	call	find_proc
+	addl	$16, %esp
+	movl	%eax, -12(%ebp)
+	cmpl	$0, -12(%ebp)
+	jne	.L623
+	jmp	.L622
+.L623:
+	movl	-12(%ebp), %eax
+	cmpl	$1023, 4(%eax)
+	jne	.L624
+	jmp	.L622
+.L624:
+	movl	8(%ebp), %eax
+	movl	%eax, -40(%ebp)
+	movl	jiffies, %eax
+	movl	%eax, -36(%ebp)
+	call	get_current
+	movl	72(%eax), %eax
+	movl	%eax, -32(%ebp)
+	movl	-12(%ebp), %ecx
+	movl	-12(%ebp), %ebx
+	movl	4(%ebx), %eax
+	movl	%eax, %edx
+	movl	%edx, %eax
+	sall	$1, %eax
+	addl	%edx, %eax
+	leal	0(,%eax,4), %edx
+	movl	-40(%ebp), %eax
+	movl	%eax, 12(%ecx,%edx)
+	movl	-36(%ebp), %eax
+	movl	%eax, 16(%ecx,%edx)
+	movl	-32(%ebp), %eax
+	movl	%eax, 20(%ecx,%edx)
+	incl	4(%ebx)
+.L622:
+	movl	-4(%ebp), %ebx
+	leave
+	ret
+.Lfe8:
+	.size	add_log,.Lfe8-add_log
+	.section	.rodata
+.LC0:
+	.string	"syscalls_logger"
+	.align 32
+.LC1:
+	.string	"<1>Registering char device failed with %d\n"
+	.text
+	.align 2
+.globl init_module
+	.type	init_module,@function
+init_module:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	subl	$4, %esp
+	pushl	$fops0
+	pushl	$.LC0
+	pushl	$0
+	call	register_chrdev
+	addl	$16, %esp
+	movl	%eax, major
+	cmpl	$0, major
+	jns	.L626
+	subl	$8, %esp
+	pushl	major
+	pushl	$.LC1
+	call	printk
+	addl	$16, %esp
+	movl	major, %eax
+	movl	%eax, -8(%ebp)
+	jmp	.L625
+.L626:
+	movl	$head, head
+	movl	$head, head+4
+#APP
+	sidt idt_adress 
+
+#NO_APP
+	movl	idt_adress+2, %eax
+	movl	%eax, -4(%ebp)
+	subl	$4, %esp
+	pushl	$patched_system_call
+	pushl	$128
+	pushl	-4(%ebp)
+	call	hook_on
+	addl	$16, %esp
+	movl	%eax, syscalls_interrupt
+	movl	$0, -8(%ebp)
+.L625:
+	movl	-8(%ebp), %eax
+	leave
+	ret
+.Lfe9:
+	.size	init_module,.Lfe9-init_module
+	.section	.rodata
+	.align 32
+.LC2:
+	.string	"<1>Error in unregister_chrdev: %d\n"
+	.text
+	.align 2
+.globl cleanup_module
+	.type	cleanup_module,@function
+cleanup_module:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	subl	$8, %esp
+	pushl	$.LC0
+	pushl	major
+	call	unregister_chrdev
+	addl	$16, %esp
+	movl	%eax, -4(%ebp)
+	cmpl	$0, -4(%ebp)
+	jns	.L630
+	subl	$8, %esp
+	pushl	-4(%ebp)
+	pushl	$.LC2
+	call	printk
+	addl	$16, %esp
+.L630:
+	subl	$8, %esp
+	pushl	orig_syscall_addr
+	pushl	syscalls_interrupt
+	call	update_idt_offset
+	addl	$16, %esp
+	call	kfree_list
+	leave
+	ret
+.Lfe10:
+	.size	cleanup_module,.Lfe10-cleanup_module
+	.align 2
+.globl my_open
+	.type	my_open,@function
+my_open:
+	pushl	%ebp
+	movl	%esp, %ebp
+	pushl	%ebx
+	subl	$20, %esp
+	subl	$12, %esp
+	subl	$4, %esp
+	call	get_current
+	addl	$4, %esp
+	pushl	120(%eax)
+	call	find_proc
+	addl	$16, %esp
+	movl	%eax, -8(%ebp)
+	cmpl	$0, -8(%ebp)
+	jne	.L632
+	subl	$8, %esp
+	pushl	$32
+	pushl	$12308
+	call	kmalloc
+	addl	$16, %esp
+	movl	%eax, -8(%ebp)
+	cmpl	$0, -8(%ebp)
+	jne	.L633
+	movl	$-12, -12(%ebp)
+	jmp	.L631
+.L633:
+	movl	-8(%ebp), %eax
+	movl	$0, 8(%eax)
+	movl	-8(%ebp), %eax
+	movl	$0, 4(%eax)
+	movl	-8(%ebp), %ebx
+	call	get_current
+	movl	120(%eax), %eax
+	movl	%eax, (%ebx)
+	subl	$8, %esp
+	pushl	$head
+	movl	-8(%ebp), %eax
+	addl	$12300, %eax
+	pushl	%eax
+	call	list_add
+	addl	$16, %esp
+.L632:
+	movl	$0, -12(%ebp)
+.L631:
+	movl	-12(%ebp), %eax
+	movl	-4(%ebp), %ebx
+	leave
+	ret
+.Lfe11:
+	.size	my_open,.Lfe11-my_open
+	.align 2
+.globl my_release
+	.type	my_release,@function
+my_release:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	subl	$12, %esp
+	subl	$4, %esp
+	call	get_current
+	addl	$4, %esp
+	pushl	120(%eax)
+	call	find_proc
+	addl	$16, %esp
+	movl	%eax, -4(%ebp)
+	cmpl	$0, -4(%ebp)
+	jne	.L635
+	movl	$-3, -8(%ebp)
+	jmp	.L634
+.L635:
+	subl	$12, %esp
+	movl	-4(%ebp), %eax
+	addl	$12300, %eax
+	pushl	%eax
+	call	list_del
+	addl	$16, %esp
+	subl	$12, %esp
+	pushl	-4(%ebp)
+	call	kfree
+	addl	$16, %esp
+	movl	$0, -8(%ebp)
+.L634:
+	movl	-8(%ebp), %eax
+	leave
+	ret
+.Lfe12:
+	.size	my_release,.Lfe12-my_release
+	.align 2
+.globl my_read_0
+	.type	my_read_0,@function
+my_read_0:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$24, %esp
+	movl	$0, -8(%ebp)
+	movl	$0, -12(%ebp)
+	cmpl	$0, 12(%ebp)
+	jne	.L637
+	movl	$-105, -24(%ebp)
+	jmp	.L636
+.L637:
+	subl	$12, %esp
+	subl	$4, %esp
+	call	get_current
+	addl	$4, %esp
+	pushl	120(%eax)
+	call	find_proc
+	addl	$16, %esp
+	movl	%eax, -4(%ebp)
+	cmpl	$0, -4(%ebp)
+	jne	.L638
+	movl	$-3, -24(%ebp)
+	jmp	.L636
+.L638:
+	movl	-4(%ebp), %ecx
+	movl	-4(%ebp), %eax
+	movl	8(%eax), %edx
+	movl	4(%ecx), %eax
+	subl	%edx, %eax
+	movl	%eax, -20(%ebp)
+	movl	16(%ebp), %eax
+	cmpl	-20(%ebp), %eax
+	jbe	.L639
+	movl	-20(%ebp), %eax
+	movl	%eax, 16(%ebp)
+.L639:
+	movl	16(%ebp), %edx
+	movl	%edx, %eax
+	sall	$1, %eax
+	addl	%edx, %eax
+	sall	$2, %eax
+	movl	%eax, -16(%ebp)
+	subl	$4, %esp
+	pushl	-16(%ebp)
+	movl	-4(%ebp), %eax
+	movl	8(%eax), %edx
+	movl	%edx, %eax
+	sall	$1, %eax
+	addl	%edx, %eax
+	sall	$2, %eax
+	addl	-4(%ebp), %eax
+	addl	$12, %eax
+	pushl	%eax
+	pushl	12(%ebp)
+	call	__generic_copy_to_user
+	addl	$16, %esp
+	movl	%eax, -8(%ebp)
+	movl	-8(%ebp), %edx
+	movl	-16(%ebp), %eax
+	subl	%edx, %eax
+	movl	%eax, %edx
+	movl	$-1431655765, %eax
+	mull	%edx
+	movl	%edx, %eax
+	shrl	$3, %eax
+	movl	%eax, -12(%ebp)
+	movl	-4(%ebp), %ecx
+	movl	-4(%ebp), %edx
+	movl	-12(%ebp), %eax
+	addl	8(%edx), %eax
+	movl	%eax, 8(%ecx)
+	movl	-12(%ebp), %eax
+	movl	%eax, -24(%ebp)
+.L636:
+	movl	-24(%ebp), %eax
+	leave
+	ret
+.Lfe13:
+	.size	my_read_0,.Lfe13-my_read_0
+	.align 2
+.globl my_write_0
+	.type	my_write_0,@function
+my_write_0:
+	pushl	%ebp
+	movl	%esp, %ebp
+	movl	$-38, %eax
+	leave
+	ret
+.Lfe14:
+	.size	my_write_0,.Lfe14-my_write_0
+	.align 2
+.globl my_llseek
+	.type	my_llseek,@function
+my_llseek:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	movl	12(%ebp), %eax
+	movl	16(%ebp), %edx
+	movl	%eax, -8(%ebp)
+	movl	%edx, -4(%ebp)
+	movl	$-38, %eax
+	movl	$-1, %edx
+	leave
+	ret
+.Lfe15:
+	.size	my_llseek,.Lfe15-my_llseek
+	.align 2
+.globl my_ioctl
+	.type	my_ioctl,@function
+my_ioctl:
+	pushl	%ebp
+	movl	%esp, %ebp
+	movl	$-38, %eax
+	leave
+	ret
+.Lfe16:
+	.size	my_ioctl,.Lfe16-my_ioctl
+	.align 2
+	.type	prefetch,@function
+prefetch:
+	pushl	%ebp
+	movl	%esp, %ebp
+	leave
+	ret
+.Lfe17:
+	.size	prefetch,.Lfe17-prefetch
+	.align 2
+	.type	list_add,@function
+list_add:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	subl	$4, %esp
+	movl	12(%ebp), %eax
+	pushl	(%eax)
+	pushl	12(%ebp)
+	pushl	8(%ebp)
+	call	__list_add
+	addl	$16, %esp
+	leave
+	ret
+.Lfe18:
+	.size	list_add,.Lfe18-list_add
+	.align 2
+	.type	list_del,@function
+list_del:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$8, %esp
+	subl	$8, %esp
+	movl	8(%ebp), %eax
+	pushl	(%eax)
+	movl	8(%ebp), %eax
+	pushl	4(%eax)
+	call	__list_del
+	addl	$16, %esp
+	leave
+	ret
+.Lfe19:
+	.size	list_del,.Lfe19-list_del
+	.align 2
+	.type	get_current,@function
+get_current:
+	pushl	%ebp
+	movl	%esp, %ebp
+	subl	$4, %esp
+	movl	$-8192, %eax
+#APP
+	andl %esp,%eax; 
+#NO_APP
+	movl	%eax, -4(%ebp)
+	movl	-4(%ebp), %eax
+	leave
+	ret
+.Lfe20:
+	.size	get_current,.Lfe20-get_current
+	.comm	major,4,4
+	.comm	orig_syscall_addr,4,4
+	.comm	idt_adress,6,1
+	.comm	syscalls_interrupt,4,4
+	.comm	log_enabled,4,4
+	.comm	head,8,4
+	.comm	temp,4,4
+	.align 2
+	.type	__list_add,@function
+__list_add:
+	pushl	%ebp
+	movl	%esp, %ebp
+	movl	16(%ebp), %edx
+	movl	8(%ebp), %eax
+	movl	%eax, 4(%edx)
+	movl	8(%ebp), %edx
+	movl	16(%ebp), %eax
+	movl	%eax, (%edx)
+	movl	8(%ebp), %edx
+	movl	12(%ebp), %eax
+	movl	%eax, 4(%edx)
+	movl	12(%ebp), %edx
+	movl	8(%ebp), %eax
+	movl	%eax, (%edx)
+	leave
+	ret
+.Lfe21:
+	.size	__list_add,.Lfe21-__list_add
+	.align 2
+	.type	__list_del,@function
+__list_del:
+	pushl	%ebp
+	movl	%esp, %ebp
+	movl	12(%ebp), %edx
+	movl	8(%ebp), %eax
+	movl	%eax, 4(%edx)
+	movl	8(%ebp), %edx
+	movl	12(%ebp), %eax
+	movl	%eax, (%edx)
+	leave
+	ret
+.Lfe22:
+	.size	__list_del,.Lfe22-__list_del
+	.ident	"GCC: (GNU) 3.2 20020903 (Red Hat Linux 8.0 3.2-7)"

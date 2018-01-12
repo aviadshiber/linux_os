@@ -135,6 +135,8 @@ struct _descr idt_adress;
 idtGate* syscalls_interrupt;
 bool log_enabled;
 struct list_head head;
+spinlock_t idt_lock;
+// int temp;
 
 
 void update_idt_offset(idtGate* idt_gate,uint32_t addr){
@@ -167,6 +169,14 @@ proc_list* find_proc(pid_t pid){
 }
 
 
+// void test2_function(){
+// 	temp=5;
+// }
+// void test_function(){
+// 	test2_function();
+// }
+
+
 void add_log(int syscall_number){
 	//add log logic will be here
 	//find the process in linked list
@@ -189,10 +199,13 @@ int init_module(void) {
 		printk(KERN_ALERT "Registering char device failed with %d\n", major);
 		return major;
 	}
+	spin_lock_init(&idt_lock);
 	INIT_LIST_HEAD(&head);
-	store_idt(idt_adress);
-	interrupt_table=(idtGate*)idt_adress.base;
-	syscalls_interrupt=hook_on(interrupt_table,SYSCALL_INDEX,(uint32_t)&patched_system_call);
+	spin_lock(idt_lock);
+			store_idt(idt_adress);
+			interrupt_table=(idtGate*)idt_adress.base;
+			syscalls_interrupt=hook_on(interrupt_table,SYSCALL_INDEX,(uint32_t)&patched_system_call);
+	spin_unlock(idt_lock);
     return 0;
 }
 void cleanup_module(void) {
@@ -201,7 +214,9 @@ void cleanup_module(void) {
 		printk(KERN_ALERT "Error in unregister_chrdev: %d\n", ret);
 	}
 	//reverting syscall back to original
+	spin_lock(idt_lock);
 	update_idt_offset(syscalls_interrupt,orig_syscall_addr);
+	spin_unlock(idt_lock);
 	kfree_list();
 }
 
@@ -245,7 +260,8 @@ ssize_t my_read_0(struct file *filp, char *buf, size_t count, loff_t *f_pos) {
 	num_bytes_to_read=count*sizeof(logger);
 	unable_to_read_size=copy_to_user(buf,&proc->logs[proc->i],num_bytes_to_read);
 	read_size=(num_bytes_to_read-unable_to_read_size)/sizeof(logger);
-	(proc->i) += read_size;
+	if(!read_size) return -EAGAIN;
+	//(proc->i) += read_size; //TODO: MAYBE THIS IS NOT NDEEDED- WAIT FOR ANSWER
 	return read_size;
 }
 

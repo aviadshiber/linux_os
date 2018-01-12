@@ -1,13 +1,17 @@
 #/bin/bash
+echo making module
+make -f Makefile
 echo "[*] Compiling the test"
-gcc -std=c99 -o test test.c
+gcc -std=c99 main.c -o test
 
 echo "[*] Installing the LKM"
 insmod syscalls_logger.o
 mknod /dev/systemcalls_logger c 254 0
 
 echo "[*] Running the test"
-./test 2>&1 
+echo Print logs? [y] Default is no
+read print
+./test $print 2>&1
 
 echo "[*] Removing the LKM"
 rm -f /dev/systemcalls_logger
