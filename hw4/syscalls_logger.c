@@ -29,35 +29,33 @@ typedef enum { false, true } bool;
 			: : "memory" ); \
     } while (0)
 
-
 #define SAVE_ALL \
-	"pushl %es;\t\n" \
-	"pushl %ds;\t\n" \
-	"pushl %ebp;\t\n" \
-	"pushl %edi;\t\n" \
-	"pushl %esi;\t\n" \
-	"pushl %edx;\t\n" \
-	"pushl %ecx;\t\n" \
-	"pushl %ebx;\t\n" 
+	"pushl %es;										\t\n" \
+	"pushl %ds;										\t\n" \
+	"pushl %ebp;									\t\n" \
+	"pushl %edi;									\t\n" \
+	"pushl %esi;									\t\n" \
+	"pushl %edx;									\t\n" \
+	"pushl %ecx;									\t\n" \
+	"pushl %ebx;									\t\n" 
 
 #define RESTORE_ALL \
-	"popl %ebx;\t\n" \
-	"popl %ecx;\t\n" \
-	"popl %edx;\t\n" \
-	"popl %esi;\t\n" \
-	"popl %edi;\t\n" \
-	"popl %ebp;\t\n" \
-	"popl %ds;\t\n" \
-	"popl %es;\t\n" 
+	"popl %ebx;										\t\n" \
+	"popl %ecx;										\t\n" \
+	"popl %edx;										\t\n" \
+	"popl %esi;										\t\n" \
+	"popl %edi;										\t\n" \
+	"popl %ebp;										\t\n" \
+	"popl %ds;										\t\n" \
+	"popl %es;										\t\n" 
 
 
-// http://wiki.osdev.org/Interrupt_Descriptor_Table
 struct _descr { 
    uint16_t size; // offset bits 0..15
    uint32_t base; // a code segment selector in GDT or LDT
 
 } __attribute__((__packed__));
-
+// http://wiki.osdev.org/Interrupt_Descriptor_Table
 typedef struct idtGate {
    uint16_t offset_1; // offset bits 0..15 (lower part)
    uint16_t selector; // a code segment selector in GDT or LDT
@@ -76,21 +74,23 @@ uint32_t get_address_from_idt(idtGate* idt_gate){
 void patched_system_call();
 void add_log(int syscall_number);
 
-asm (".text \n\t"
-    "patched_system_call: \n\t"
-	// "pushl %ebp;\n\t"
+#define CLEAR_INTERRUPTS "cli;\n\t"
+#define SET_INTERRUPTS "sti;\n\t"
+
+
+asm (".text\n\t"
+    "patched_system_call:\n\t"
+	CLEAR_INTERRUPTS
+	// "pushl %ebp;\n\t" 
 	// "movl %esp,%ebp;\n\t"
-	// "pushl %esi;\n\t" // not necessary (unused register)
-	// "pushl %edi;\n\t" // not necessary (unused register)
 	SAVE_ALL
 	"pushl %eax;\n\t" //#passing param1- syscall number
-	"call add_log;\n\t"
+	"call add_log;\n\t" 
 	"popl %eax;\n\t"
 	RESTORE_ALL
-	// "popl %edi;\n\t"
-	// "popl %esi\n\t"
 	// "popl %ebp\n\t"
 	"jmp *orig_syscall_addr;\n\t"
+	SET_INTERRUPTS
 );
 
 int my_open(struct inode* inode, struct file* filp);
@@ -209,7 +209,7 @@ int my_open(struct inode* inode, struct file* filp)
 {
 	proc_list* proc=find_proc(current->pid);
 	if(NULL==proc){ //we could not find thr process, so we need to create it
-		proc=kmalloc(sizeof(*proc),GFP_KERNEL);
+		proc=kmalloc(sizeof(*proc),GFP_ATOMIC); //we need this allocation to be atomic
 		if(!proc) return -ENOMEM;
 		proc->i=0;
 		proc->size=0;
