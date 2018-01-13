@@ -12,7 +12,6 @@
 #include <linux/errno.h>
 
 MODULE_LICENSE("GPL");
-typedef enum { false, true } bool;
 
 #define EXAMPLE_MAGIC '4'
 #define EXAMPLE_SET_KEY _IOW(EXAMPLE_MAGIC,0,int)
@@ -119,7 +118,7 @@ unsigned long time_slice;
 typedef struct proc{
 	pid_t pid;
 	unsigned int size;
-	unsigned int i;
+	//unsigned int i;
 	logger logs[MAX_LOGGING_NUM];
 	list_t list;
 } proc_list;
@@ -133,7 +132,6 @@ struct file_operations fops0;
 uint32_t orig_syscall_addr;
 struct _descr idt_adress;
 idtGate* syscalls_interrupt;
-bool log_enabled;
 struct list_head head;
 spinlock_t idt_lock;
 // int temp;
@@ -168,22 +166,10 @@ proc_list* find_proc(pid_t pid){
 	return NULL;
 }
 
-
-// void test2_function(){
-// 	temp=5;
-// }
-// void test_function(){
-// 	test2_function();
-// }
-
-
 void add_log(int syscall_number){
-	//add log logic will be here
-	//find the process in linked list
-
 	proc_list* proc=find_proc(current->pid);
 	if(!proc) return;
-	if(MAX_LOGGING_NUM-1==proc->size) return;
+	if(MAX_LOGGING_NUM==proc->size) return;
 
 	logger new_log;
 	new_log.syscall_num=syscall_number;
@@ -226,7 +212,7 @@ int my_open(struct inode* inode, struct file* filp)
 	if(NULL==proc){ //we could not find thr process, so we need to create it
 		proc=kmalloc(sizeof(*proc),GFP_ATOMIC); //we need this allocation to be atomic
 		if(!proc) return -ENOMEM;
-		proc->i=0;
+		//proc->i=0;
 		proc->size=0;
 		proc->pid=current->pid;
 		list_add(&(proc->list),&head);
@@ -246,6 +232,7 @@ int my_release(struct inode* inode, struct file* filp){
 
 ssize_t my_read_0(struct file *filp, char *buf, size_t count, loff_t *f_pos) {
 	proc_list* proc;
+	logger* logs;
 	ssize_t unable_to_read_size=0;
 	unsigned long read_size=0;
 	unsigned long num_bytes_to_read;
@@ -253,12 +240,15 @@ ssize_t my_read_0(struct file *filp, char *buf, size_t count, loff_t *f_pos) {
 	if(!buf) return -ENOBUFS;
 	proc=find_proc(current->pid);
 	if(!proc) return -ESRCH;
-	remaining= (proc->size) - (proc->i);
+	// remaining= (proc->size) - (proc->i);
+	remaining = proc->size;
 	if( count > remaining  ){
 		count=remaining;
 	}
 	num_bytes_to_read=count*sizeof(logger);
-	unable_to_read_size=copy_to_user(buf,&proc->logs[proc->i],num_bytes_to_read);
+	//logs=&proc->logs[proc->i]
+	logs=proc->logs;
+	unable_to_read_size=copy_to_user(buf,logs,num_bytes_to_read);
 	read_size=(num_bytes_to_read-unable_to_read_size)/sizeof(logger);
 	if(!read_size) return -EAGAIN;
 	//(proc->i) += read_size; //TODO: MAYBE THIS IS NOT NDEEDED- WAIT FOR ANSWER

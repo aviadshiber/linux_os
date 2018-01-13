@@ -74,7 +74,7 @@ void basic_log_test() {
 	   assert(logs[60].sys_id == 3);
 
 	   for (int i = 61; MAX_LOG_ENTRIES > i; i++) {
-		printf("log[%d].sys_id=%d\n",i,logs[i].sys_id);
+		//printf("log[%d].sys_id=%d\n",i,logs[i].sys_id);
 		assert(logs[i].sys_id == 13);
 	   }
 
