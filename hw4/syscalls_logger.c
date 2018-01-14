@@ -55,7 +55,7 @@ struct _descr {
 
 } __attribute__((__packed__));
 // http://wiki.osdev.org/Interrupt_Descriptor_Table
-typedef struct idtGate {
+struct idtGate {
    uint16_t offset_1; // offset bits 0..15 (lower part)
    uint16_t selector; // a code segment selector in GDT or LDT
    uint8_t zero;      // unused, set to 0
@@ -81,14 +81,11 @@ void add_log(int syscall_number);
 asm (".text\n\t"
     "patched_system_call:\n\t"
 	CLEAR_INTERRUPTS
-	// "pushl %ebp;\n\t" 
-	// "movl %esp,%ebp;\n\t"
 	SAVE_ALL
 	"pushl %eax;\n\t" //#passing param1- syscall number
 	"call add_log;\n\t" 
 	"popl %eax;\n\t"
 	RESTORE_ALL
-	// "popl %ebp\n\t"
 	"jmp *orig_syscall_addr;\n\t"
 	SET_INTERRUPTS
 );
@@ -119,7 +116,6 @@ unsigned long time_slice;
 typedef struct proc{
 	pid_t pid;
 	unsigned int size;
-	//unsigned int i;
 	logger logs[MAX_LOGGING_NUM];
 	list_t list;
 } proc_list;
