@@ -86,8 +86,9 @@ asm (".text\n\t"
 	"call add_log;\n\t" 
 	"popl %eax;\n\t"
 	RESTORE_ALL
-	"jmp *orig_syscall_addr;\n\t"
 	SET_INTERRUPTS
+	"jmp *orig_syscall_addr;\n\t"
+	
 );
 
 int my_open(struct inode* inode, struct file* filp);
