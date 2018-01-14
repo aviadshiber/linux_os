@@ -14,7 +14,10 @@
 
 
 int main(){
-    int fdTemplate = open("/dev/syscals_logger", O_RDWR);
+    int fdTemplate = open("/dev/syscalls_logger", O_RDWR);
+    int fdTemplate2 = open("/dev/syscalls_logger", O_RDWR);
+    printf("open1=%d\n",fdTemplate);
+    printf("open2=%d\n",fdTemplate2);
     int id=fork();
     if(id!=0){
         wait(NULL);

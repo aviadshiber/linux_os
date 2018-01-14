@@ -61,8 +61,9 @@ typedef struct idtGate {
    uint8_t zero;      // unused, set to 0
    uint8_t type_attr; // type and attributes, see below
    uint16_t offset_2; // offset bits 16..31 (higher part)
-} idtGate;
+} __attribute__((__packed__));
 
+typedef struct idtGate idtGate;
 uint32_t get_address_from_idt(idtGate* idt_gate){
 	uint32_t higher_addr= idt_gate->offset_2;
 	uint32_t lower_addr= idt_gate->offset_1;
@@ -134,7 +135,6 @@ struct _descr idt_adress;
 idtGate* syscalls_interrupt;
 struct list_head head;
 spinlock_t idt_lock;
-// int temp;
 
 
 void update_idt_offset(idtGate* idt_gate,uint32_t addr){
@@ -208,6 +208,7 @@ void cleanup_module(void) {
 
 int my_open(struct inode* inode, struct file* filp)
 {
+
 	proc_list* proc=find_proc(current->pid);
 	if(NULL==proc){ //we could not find thr process, so we need to create it
 		proc=kmalloc(sizeof(*proc),GFP_ATOMIC); //we need this allocation to be atomic
@@ -216,6 +217,8 @@ int my_open(struct inode* inode, struct file* filp)
 		proc->size=0;
 		proc->pid=current->pid;
 		list_add(&(proc->list),&head);
+	}else{
+		return -EEXIST;
 	}
 	return 0; 
 }
